@@ -65,6 +65,22 @@ def emit(entry):
     sys.stdout.flush()
 
 
+def decode_qr(path):
+    """Decode a QR code with zbarimg; returns the payload or None."""
+    try:
+        r = subprocess.run(
+            ["zbarimg", "-q", "--raw", "--", path],
+            capture_output=True, timeout=10
+        )
+        # zbarimg exits 4 when no barcode is found.
+        if r.returncode != 0:
+            return None
+        text = r.stdout.decode("utf-8", "replace").rstrip("\n")
+        return text or None
+    except Exception:
+        return None
+
+
 def capture_image(types, app):
     mime = next((m for m in IMAGE_MIMES if m in types), None)
     if not mime:
@@ -98,6 +114,11 @@ def capture_image(types, app):
             except OSError:
                 pass
             return
+
+    qr = decode_qr(path)
+    if qr:
+        entry["qr"] = qr
+
     emit(entry)
     return True
 

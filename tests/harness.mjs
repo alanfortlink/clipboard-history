@@ -6,7 +6,7 @@ import path from "node:path"
 import vm from "node:vm"
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url))
-const pluginDir = path.join(testsDir, "..", "plugin")
+const pluginDir = path.join(testsDir, "..")
 
 export function loadLib(name) {
   let src = readFileSync(path.join(pluginDir, name), "utf8")

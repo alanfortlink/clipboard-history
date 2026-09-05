@@ -57,6 +57,7 @@ Item {
     var e = r.entry
     var chips = []
     if (r.app) chips.push(Classify.prettyApp(r.app))
+    if (e.qr) chips.push("QR: " + Classify.firstLine(e.qr, 40))
     if (e.type === "text" && e.text) {
       var st = Classify.textStats(e.text)
       chips.push(Classify.plural(st.words, "word"))
@@ -105,7 +106,7 @@ Item {
         text: {
           if (!root.entry) return ""
           var e = root.entry
-          if (e.type === "image") return Classify.fileBase(e.path)
+          if (e.type === "image") return e.qr ? Classify.firstLine(e.qr, 120) : Classify.fileBase(e.path)
           if (e.type === "files") {
             var base = Classify.fileBase(e.paths[0])
             return e.paths.length > 1 ? base + "  +" + (e.paths.length - 1) + " more" : base
@@ -116,6 +117,7 @@ Item {
         font.family: root.font_
         font.pixelSize: Style.font.title
         font.bold: true
+        textFormat: Text.PlainText
         elide: Text.ElideRight
         maximumLineCount: 1
       }
@@ -303,9 +305,68 @@ Item {
     visible: root.derived === "image"
     spacing: Style.space(8)
 
+    // Decoded QR payload sits above the image so it is immediately readable.
+    Rectangle {
+      visible: root.entry && root.entry.qr
+      width: parent.width
+      height: qrContent.height + Style.space(12)
+      radius: Style.cornerRadius
+      color: root.chipBg
+
+      Column {
+        id: qrContent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: Style.space(6)
+        anchors.topMargin: Style.space(6)
+        anchors.leftMargin: Style.space(6)
+        anchors.rightMargin: Style.space(6)
+        spacing: Style.space(4)
+
+        Row {
+          spacing: Style.space(6)
+
+          Text {
+            text: "󰐲"
+            color: Color.accent
+            font.family: root.font_
+            font.pixelSize: Style.font.body
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          Text {
+            text: "QR code content"
+            color: Color.accent
+            font.family: root.font_
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            anchors.verticalCenter: parent.verticalCenter
+          }
+        }
+
+        TextEdit {
+          id: qrValue
+          width: parent.width
+          readOnly: true
+          activeFocusOnPress: false
+          text: root.entry && root.entry.qr ? root.entry.qr : ""
+          textFormat: TextEdit.PlainText
+          color: root.fg
+          font.family: root.font_
+          font.pixelSize: Style.font.body
+          font.bold: true
+          wrapMode: TextEdit.WrapAnywhere
+          selectionColor: Util.alpha(Color.accent, 0.4)
+        }
+      }
+    }
+
     Item {
       width: parent.width
-      height: parent.height - infoLabel.height - Style.space(12)
+      height: Math.max(0, parent.height
+             - (root.entry && root.entry.qr ? qrContent.height + Style.space(12) + Style.space(8) : 0)
+             - infoLabel.height - Style.space(12))
 
       Image {
         id: img
@@ -474,6 +535,7 @@ Item {
           id: chipLabel
           anchors.centerIn: parent
           text: parent.chipText
+          textFormat: Text.PlainText
           color: root.mutedFg
           font.family: root.font_
           font.pixelSize: Style.font.caption

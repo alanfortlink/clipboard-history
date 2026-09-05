@@ -794,9 +794,15 @@ Item {
       var subtitleParts = []
 
       if (e.type === "image") {
-        titleHtml = "Image" + (e.mime ? " · " + e.mime.replace("image/", "").toUpperCase() : "")
-        if (e.w && e.h) titleHtml += " · " + e.w + "×" + e.h
-        subtitleParts.push(Classify.formatBytes(r.row.bytes))
+        if (e.qr) {
+          titleHtml = Fuzzy.escapeHtml(Classify.firstLine(e.qr, 60))
+          subtitleParts.push("QR")
+          if (e.mime) subtitleParts.push(e.mime.replace("image/", "").toUpperCase())
+        } else {
+          titleHtml = "Image" + (e.mime ? " · " + e.mime.replace("image/", "").toUpperCase() : "")
+          if (e.w && e.h) titleHtml += " · " + e.w + "×" + e.h
+          subtitleParts.push(Classify.formatBytes(r.row.bytes))
+        }
       } else if (e.type === "files") {
         var base = Classify.fileBase(e.paths[0])
         titleHtml = Fuzzy.escapeHtml(e.paths.length > 1 ? base + "  +" + (e.paths.length - 1) + " more" : base)
@@ -808,6 +814,7 @@ Item {
       }
 
       subtitleParts.push(Classify.typeLabel(derived))
+      if (e.type === "image" && e.qr) subtitleParts.pop() // "QR" badge already says it
       if (r.row.app) subtitleParts.push(Classify.prettyApp(r.row.app))
       if (r.row.ts) subtitleParts.push(Classify.formatAge(r.row.ts, Math.floor(Date.now() / 1000)))
 

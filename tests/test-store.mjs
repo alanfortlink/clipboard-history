@@ -110,3 +110,19 @@ test("entryId distinct for distinct content", () => {
   const b = Store.entryId({ type: "text", text: "two" })
   assert.notEqual(a, b)
 })
+
+test("qr payload passes through normalize and dedup", () => {
+  const e = Store.normalize({ type: "image", path: "/x/qr.png", mime: "image/png", w: 100, h: 100, qr: "https://example.com" })
+  assert.equal(e.qr, "https://example.com")
+  // Re-copy of the same image keeps the decoded QR even if the new capture lacks it.
+  let h = Store.addEntry([], { type: "image", path: "/x/qr.png", qr: "https://example.com", ts: 1 })
+  h = Store.addEntry(h, { type: "image", path: "/x/qr.png", ts: 2 })
+  assert.equal(h.length, 1)
+  assert.equal(h[0].qr, "https://example.com")
+  assert.equal(h[0].ts, 2)
+})
+
+test("buildRow makes QR payload searchable", () => {
+  const row = Store.buildRow({ type: "image", path: "/x/qr.png", mime: "image/png", qr: "secret-payload-xyz", ts: 1, bytes: 10, app: "", uses: 0 }, "image", 1)
+  assert.ok(row.content.includes("secret-payload-xyz"))
+})

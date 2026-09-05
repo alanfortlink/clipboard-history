@@ -50,6 +50,7 @@ function normalize(value, now) {
     }
     if (value.w) out.w = Number(value.w)
     if (value.h) out.h = Number(value.h)
+    if (value.qr) out.qr = String(value.qr)
   } else if (type === "files") {
     var paths = Array.isArray(value.paths) ? value.paths.filter(function(p) { return !!p }) : []
     if (paths.length === 0) return null
@@ -103,6 +104,8 @@ function addEntry(history, entry, now) {
       // Re-copy of existing content: keep its pin state and usage count.
       if (existing.pinned) normalized.pinned = true
       if (existing.uses > 0) normalized.uses = existing.uses
+      // Keep expensive derived data (e.g. decoded QR) across re-captures.
+      if (existing.qr && !normalized.qr) normalized.qr = existing.qr
       continue
     }
     next.push(existing)
@@ -176,6 +179,7 @@ function buildRow(entry, derivedType, now) {
   var content = ""
   if (entry.type === "image") {
     content = fileLabel(entry.path) + " " + String(entry.mime || "")
+    if (entry.qr) content += " " + String(entry.qr).slice(0, 500)
   } else if (entry.type === "files") {
     content = (entry.paths || []).join(" ")
   } else {
