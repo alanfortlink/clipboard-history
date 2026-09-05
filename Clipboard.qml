@@ -374,6 +374,7 @@ Item {
     onFileChanged: reload()
   }
 
+  Process { id: depsProc }
   Process {
     id: gcProc
     onExited: runNextGc()
