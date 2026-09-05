@@ -360,7 +360,7 @@ Item {
 
     // Decoded QR payload sits above the image so it is immediately readable.
     Rectangle {
-      visible: root.entry && root.entry.qr
+      visible: !!(root.entry && root.entry.qr)
       width: parent.width
       height: qrContent.height + Style.space(12)
       radius: Style.cornerRadius
@@ -456,7 +456,7 @@ Item {
     // OCR text recovered from the image (searchable like any text clip).
     Rectangle {
       id: ocrPanel
-      visible: root.entry && root.entry.ocr
+      visible: !!(root.entry && root.entry.ocr)
       width: parent.width
       height: Math.min(Style.space(150), ocrContent.height + Style.space(12))
       radius: Style.cornerRadius
@@ -599,7 +599,7 @@ Item {
     }
 
     Text {
-      visible: root.entry && root.entry.paths && root.entry.paths.length > 10
+      visible: !!(root.entry && root.entry.paths && root.entry.paths.length > 10)
       text: root.entry && root.entry.paths ? "… and " + (root.entry.paths.length - 10) + " more" : ""
       color: root.mutedFg
       font.family: root.font_

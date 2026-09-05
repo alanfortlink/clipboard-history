@@ -61,7 +61,11 @@ Item {
   // ------------------------------------------------------------ lifecycle
 
   function open() {
+    // Always show the picker first. Dependency checks are asynchronous and
+    // only update the in-window banner; they never block or replace the UI.
     root.opened = true
+    root.depsChecked = false
+    root.checkDeps()
     root.filterText = ""
     root.typeFilter = ""
     root.selectedIndex = 0
@@ -334,30 +338,47 @@ Item {
   // Missing-helper state surfaced IN the picker: banner with the exact
   // command and a "Run in terminal" button. Nothing launches on its own.
   property bool depsChecked: false
-  property var missingDeps: [] // [{ name, command }]
-  property string depsPendingSlot: ""
+  property var missingDeps: [] // [{ name, packages }]
   function checkDeps() {
-    if (root.depsChecked) return
+    if (root.depsChecked || depsProc.running) return
     root.depsChecked = true
-    if (root.qrDecode) {
-      depsProc.slot = "qr"
-      depsProc.command = ["bash", "-c", "command -v zbarimg >/dev/null 2>&1 && echo ok || echo missing"]
-      depsProc.running = true
+    var checks = [
+      "python3|Clipboard capture|python3",
+      "jq|Paste and open actions|jq",
+      "wl-copy|Clipboard access|wl-clipboard",
+      "wtype|Paste into the active window|wtype"
+    ]
+    if (root.qrDecode) checks.push("zbarimg|QR decode|zbar")
+    if (root.ocr) checks.push("tesseract|OCR search|tesseract tesseract-data-eng")
+    var script = ""
+    for (var i = 0; i < checks.length; i++) {
+      var fields = checks[i].split("|")
+      script += "command -v " + fields[0] + " >/dev/null 2>&1 || printf '%s\\n' '" + checks[i] + "';"
     }
-    if (root.ocr) {
-      depsProc.slot = "ocr"
-      depsProc.command = ["bash", "-c", "command -v tesseract >/dev/null 2>&1 && echo ok || echo missing"]
-      depsProc.running = true
-    }
+    depsProc.command = ["bash", "-c", script]
+    depsProc.running = true
   }
 
-  function depResult(slot, line) {
-    if (String(line).trim() !== "missing") return
-    if (slot === "qr") {
-      root.missingDeps.push({ name: "QR decode", command: "omarchy pkg add zbar" })
-    } else if (slot === "ocr") {
-      root.missingDeps.push({ name: "OCR search", command: "omarchy pkg add tesseract tesseract-data-eng" })
+  function depResult(output) {
+    var missing = []
+    var lines = String(output || "").trim().split("\n")
+    for (var i = 0; i < lines.length; i++) {
+      if (!lines[i]) continue
+      var fields = lines[i].split("|")
+      if (fields.length === 3)
+        missing.push({ name: fields[1], packages: fields[2] })
     }
+    root.missingDeps = missing
+  }
+
+  function missingDependencyCommand() {
+    var packages = []
+    for (var i = 0; i < root.missingDeps.length; i++) {
+      var names = root.missingDeps[i].packages.split(" ")
+      for (var j = 0; j < names.length; j++)
+        if (packages.indexOf(names[j]) === -1) packages.push(names[j])
+    }
+    return packages.length ? "omarchy pkg add " + packages.join(" ") : ""
   }
 
   function applySettings(raw) {
@@ -407,10 +428,9 @@ Item {
 
   Process {
     id: depsProc
-    property string slot: ""
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.depResult(depsProc.slot, text)
+      onStreamFinished: root.depResult(text)
     }
   }
   Process {
@@ -473,8 +493,8 @@ Item {
   PanelWindow {
     id: panel
     visible: root.opened
-    width: root.cardWidth
-    height: root.cardHeight
+    implicitWidth: root.cardWidth
+    implicitHeight: root.cardHeight
     color: "transparent"
     WlrLayershell.namespace: "alanfortlink-clipboard"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -724,7 +744,7 @@ Item {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               text: root.missingDeps.length > 0
-                    ? root.missingDeps[0].name + " unavailable — run: " + root.missingDeps[0].command
+                    ? root.missingDeps[0].name + " unavailable — run: " + root.missingDependencyCommand()
                     : ""
               color: Color.urgent
               font.family: root.fontFamily
@@ -755,9 +775,8 @@ Item {
                 onClicked: {
                   if (root.missingDeps.length === 0) return
                   root.close()
-                  var cmd = ""
-                  for (var i = 0; i < root.missingDeps.length; i++)
-                    cmd += (i ? " && " : "") + root.missingDeps[i].command
+                  var cmd = root.missingDependencyCommand()
+                  if (!cmd) return
                   cmd += '; echo; echo "Done — press Enter to close"; read'
                   Quickshell.execDetached(["omarchy-launch-terminal", "bash", "-c", cmd])
                 }

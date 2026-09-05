@@ -47,11 +47,9 @@ full theme integration.
 omarchy plugin add https://github.com/alanfortlink/clipboard-history.git --enable
 ```
 
-Optional extras (usually already installed):
-
-```bash
-omarchy pkg add zbar tesseract tesseract-data-eng   # QR decode + OCR search
-```
+No separate dependency command is required during installation. The picker
+always opens; if a helper is missing, it shows the exact package command inside
+the window with a **Run in terminal** button.
 
 Already have images in history you'd like OCR'd? One-shot backfill:
 
@@ -63,8 +61,9 @@ That's the whole install — `omarchy plugin add` clones the repo, validates the
 manifest, and enables it. It replaces the built-in `omarchy.clipboard`
 (restore it later with `omarchy plugin disable alanfortlink.clipboard`).
 
-Omarchy's default `Super+Ctrl+V` (and `Super+Shift+V`) already routes to it
-via the clone mechanism. For a custom binding, edit the **live** config —
+Omarchy's default `Super+Ctrl+V` routes to it via the clone mechanism. An
+existing `Super+Shift+V` binding targeting `omarchy.clipboard` routes to it too.
+For a custom binding, edit the **live** config —
 `~/.config/hypr/bindings.lua` on Quattro (a plain `bindings.conf` may exist
 but is not sourced):
 
