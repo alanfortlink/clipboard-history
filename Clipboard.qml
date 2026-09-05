@@ -61,9 +61,13 @@ Item {
   // ------------------------------------------------------------ lifecycle
 
   function open() {
-    // Always show the picker first. Dependency checks are asynchronous and
-    // only update the in-window banner; they never block or replace the UI.
+    // Keep the layer mapped and switch its content/input on explicitly.
+    // A visibility binding across the host Loader -> PanelWindow boundary can
+    // remain stale after plugin reloads on current Quickshell.
     root.opened = true
+    card.visible = true
+    panelInputRegion.width = panel.width
+    panelInputRegion.height = panel.height
     root.depsChecked = false
     root.checkDeps()
     root.filterText = ""
@@ -77,6 +81,9 @@ Item {
 
   function close() {
     root.cancelClearHistory()
+    card.visible = false
+    panelInputRegion.width = 0
+    panelInputRegion.height = 0
     root.opened = false
   }
 
@@ -503,13 +510,14 @@ Item {
     WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     mask: Region {
-      width: root.opened ? panel.width : 0
-      height: root.opened ? panel.height : 0
+      id: panelInputRegion
+      width: 0
+      height: 0
     }
 
     BorderSurface {
       id: card
-      visible: root.opened
+      visible: false
       anchors.fill: parent
       radius: root.cornerRadius
       color: root.background
