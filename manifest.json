@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "alanfortlink.clipboard",
   "name": "Clipboard History",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "alanfortlink",
   "description": "Raycast-style clipboard history: fuzzy search over content, type, app and date, with rich per-type previews",
   "kinds": [

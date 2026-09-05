@@ -488,30 +488,29 @@ Item {
 
   // ------------------------------------------------------------ window
 
-  // Use the same proven fullscreen layer surface as Omarchy's built-in
-  // clipboard. The surface is transparent; only the centered card is drawn.
-  // An unanchored, fixed-size PanelWindow can silently fail to map after a
-  // plugin hot reload on current Quickshell/Hyprland versions.
+  // Keep the small floating layer mapped: current Quickshell can fail to
+  // remap an unanchored PanelWindow after visible changes from false to true.
+  // While closed the card is invisible, keyboard focus is disabled, and the
+  // empty input region makes the surface completely click-through.
   PanelWindow {
     id: panel
-    visible: root.opened
-    anchors { top: true; bottom: true; left: true; right: true }
+    visible: true
+    implicitWidth: root.cardWidth
+    implicitHeight: root.cardHeight
     color: "transparent"
     WlrLayershell.namespace: "alanfortlink-clipboard"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
-
-    MouseArea {
-      anchors.fill: parent
-      onClicked: root.close()
+    mask: Region {
+      width: root.opened ? panel.width : 0
+      height: root.opened ? panel.height : 0
     }
 
     BorderSurface {
       id: card
-      width: root.cardWidth
-      height: root.cardHeight
-      anchors.centerIn: parent
+      visible: root.opened
+      anchors.fill: parent
       radius: root.cornerRadius
       color: root.background
       borderSpec: root.borderSpec
