@@ -83,20 +83,8 @@ Item {
     else root.open()
   }
 
-  // Direct target for explicit bindings and pause/resume automation.
-  IpcHandler {
-    target: "alanfortlink.clipboard"
-    function open(): void { root.open() }
-    function close(): void { root.close() }
-    function show(): void { root.open() }
-    function hide(): void { root.close() }
-    function toggle(): void { root.toggle() }
-    function pause(payloadJson: string): string { return root.pause(payloadJson) }
-    function isPaused(): string { return root.isPaused() }
-  }
-
   // ------------------------------------------------------------ pause
-  // Toggle via IPC:  omarchy-shell alanfortlink.clipboard pause '{"paused":true}'
+  // Toggle via IPC:  omarchy-shell shell call alanfortlink.clipboard pause '{"paused":true}'
   // (or {"paused":false}, or {"paused":"toggle"}), and Ctrl+Space in the picker.
   function setPaused(next) {
     root.paused = !!next

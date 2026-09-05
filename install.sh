@@ -5,7 +5,7 @@
 # - rescans + enables it (shell.json gets plugins[] entry; the built-in
 #   omarchy.clipboard is recorded in disabledPlugins[] and routed here)
 # - checks and installs dependencies transparently (QR/OCR degrade without them)
-# - binds SUPER+SHIFT+V and ALT+SHIFT+V directly to this picker (with backup)
+# - binds SUPER+SHIFT+V and ALT+SHIFT+V to the clone-aware source id (with backup)
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,9 +58,9 @@ fi
 echo "==> Enabling $PLUGIN_ID (replaces built-in omarchy.clipboard)"
 omarchy plugin enable "$PLUGIN_ID"
 
-echo "==> Binding SUPER+SHIFT+V and ALT+SHIFT+V directly to $PLUGIN_ID"
-# Do not route through `shell toggle`: plugin rescans can leave its panel Loader
-# stale. The plugin-owned IPC target always controls the mapped picker window.
+echo "==> Binding SUPER+SHIFT+V and ALT+SHIFT+V to the clipboard source"
+# Always target the built-in source id. Omarchy routes it to this clone while
+# installed, then automatically routes it back to the built-in after removal.
 rebound=0
 if [[ -f $HOME/.config/hypr/bindings.lua ]]; then
   LUA="$HOME/.config/hypr/bindings.lua"
@@ -68,7 +68,7 @@ if [[ -f $HOME/.config/hypr/bindings.lua ]]; then
   python3 - "$LUA" >"$tmp" <<'PY'
 import re, sys
 text = open(sys.argv[1]).read()
-command = "omarchy-shell alanfortlink.clipboard toggle"
+command = "omarchy-shell shell toggle omarchy.clipboard"
 for chord in ("SUPER + SHIFT + V", "ALT + SHIFT + V"):
     line = f'o.bind("{chord}", "Clipboard manager (clipboard-history)", "{command}")'
     pattern = re.compile(r'^\s*o\.bind\("' + re.escape(chord) + r'".*$', re.M)
@@ -92,8 +92,8 @@ elif [[ -f $HOME/.config/hypr/bindings.conf ]]; then
   cp "$CONF" "$CONF.bak.$(date +%s)"
   sed -i '/^bindd = \(SUPER\|ALT\) SHIFT, V, /d' "$CONF"
   printf '%s\n' \
-    'bindd = SUPER SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell alanfortlink.clipboard toggle' \
-    'bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell alanfortlink.clipboard toggle' >>"$CONF"
+    'bindd = SUPER SHIFT, V, Clipboard manager, exec, omarchy-shell shell toggle omarchy.clipboard' \
+    'bindd = ALT SHIFT, V, Clipboard manager, exec, omarchy-shell shell toggle omarchy.clipboard' >>"$CONF"
   echo "    updated bindings.conf (backup created)"
   rebound=1
 fi
