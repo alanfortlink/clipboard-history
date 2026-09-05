@@ -115,7 +115,7 @@ def capture_image(types, app):
                 pass
             return
 
-    qr = decode_qr(path)
+    qr = decode_qr(path) if os.environ.get("CLIPBOARD_QR", "1") != "0" else None
     if qr:
         entry["qr"] = qr
 

@@ -28,6 +28,9 @@ Item {
   property string statePath: Quickshell.env("HOME") + "/.local/state/omarchy/clipboard-history-rich.json"
   property int historyLimit: 1500
   property int displayLimit: 200
+  property int maxAgeDays: 0 // 0 = keep forever
+  property bool qrDecode: true
+  property bool paused: false
   property var typeCache: ({}) // id → derived type, memoized
 
   // Theme surface tokens (menu) — tracks the active Omarchy theme.
@@ -46,8 +49,8 @@ Item {
   readonly property string fontFamily: Style.font.menuFamily
   readonly property int contentMargin: Style.spacing.panelPadding
   readonly property int headerHeight: Math.max(Style.space(40), Style.font.heading + Style.spacing.controlPaddingY * 2)
-  readonly property int cardWidth: Math.min(Style.space(980), panel.width - Style.gapsOut * 2)
-  readonly property int cardHeight: Math.min(Style.space(680), panel.height - Style.gapsOut * 2)
+  readonly property int cardWidth: Style.space(980)
+  readonly property int cardHeight: Style.space(680)
   readonly property int rowHeight: Style.space(52)
   readonly property int listWidth: Math.round(card.width * 0.46)
 
@@ -76,19 +79,65 @@ Item {
     else root.open()
   }
 
+  // ------------------------------------------------------------ pause
+  // Toggle via IPC:  omarchy-shell shell call tank.clipboard pause '{"paused":true}'
+  // (or {"paused":false}, or {"paused":"toggle"}), and Ctrl+Space in the picker.
+  function setPaused(next) {
+    root.paused = !!next
+    pausedFile.setText(JSON.stringify({ paused: root.paused }) + "\n")
+  }
+
+  function pause(payloadJson) {
+    var p = null
+    try { p = JSON.parse(String(payloadJson || "{}")) } catch (e) { p = null }
+    var next = p && typeof p.paused !== "undefined"
+      ? (p.paused === "toggle" ? !root.paused : !!p.paused)
+      : !root.paused
+    root.setPaused(next)
+    Quickshell.execDetached(["notify-send", "-a", "Clipboard History",
+      next ? "Clipboard history paused" : "Clipboard history resumed",
+      next ? "New copies are not being recorded." : "Recording new copies again."])
+    return JSON.stringify({ paused: root.paused })
+  }
+
+  function isPaused() { return JSON.stringify({ paused: root.paused }) }
+
+  // Screenshot helper: omarchy-shell shell call tank.clipboard debugSetFilter '{"text":"…"}'
+  // Opens the picker with a preset query so scripts can capture it keyboard-free.
+  function debugSetFilter(payloadJson) {
+    var p = {}
+    try { p = JSON.parse(String(payloadJson || "{}")) } catch (e) { p = {} }
+    root.open()
+    root.setFilter(String(p.text || ""))
+    return "ok"
+  }
+
   // ------------------------------------------------------------ store
 
   function loadHistory(raw) {
     root.history = Store.parseHistory(raw, Math.floor(Date.now() / 1000))
     root.typeCache = {}
+    root.applyRetentionPolicy()
     if (root.opened) root.rebuild()
   }
 
   function saveHistory() {
     var pruned = Store.prune(root.history, root.historyLimit)
-    root.history = pruned.entries
+    var aged = Store.pruneByAge(pruned.entries, root.maxAgeDays > 0 ? root.maxAgeDays * 86400 : -1, Math.floor(Date.now() / 1000))
+    root.history = aged.entries
     historyFile.setText(JSON.stringify(root.history, null, 1) + "\n")
-    if (pruned.droppedImagePaths.length > 0) queueGc(pruned.droppedImagePaths)
+    var paths = pruned.droppedImagePaths.concat(aged.droppedImagePaths)
+    if (paths.length > 0) queueGc(paths)
+  }
+
+  // Full retention pass, run when history loads and when settings change.
+  function applyRetentionPolicy() {
+    if (root.maxAgeDays <= 0) return
+    var aged = Store.pruneByAge(root.history, root.maxAgeDays * 86400, Math.floor(Date.now() / 1000))
+    if (aged.entries.length === root.history.length) return
+    root.history = aged.entries
+    if (aged.droppedImagePaths.length > 0) queueGc(aged.droppedImagePaths)
+    root.saveHistory()
   }
 
   // Serialize GC batches: a single reusable Process would silently drop
@@ -105,6 +154,7 @@ Item {
   }
 
   function addClipboardJson(line) {
+    if (root.paused) return
     var entry = null
     try { entry = JSON.parse(String(line || "")) } catch (e) { return }
     if (!entry) return
@@ -266,6 +316,41 @@ Item {
 
   PointerMoveGate { id: pointerGate; referenceItem: card }
 
+  // User settings live on this plugin's entry in shell.json (hot-reloads):
+  // { "id": "tank.clipboard", "historyLimit": 1500, "maxAgeDays": 30, "maxRows": 200 }
+  FileView {
+    id: shellConfigFile
+    path: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.applySettings(text())
+    onLoadFailed: root.applySettings("{}")
+    onFileChanged: reload()
+  }
+
+  function applySettings(raw) {
+    var s = Store.parseSettings(raw, "tank.clipboard")
+    root.historyLimit = s.historyLimit
+    root.maxAgeDays = s.maxAgeDays
+    root.displayLimit = s.maxRows
+    root.qrDecode = s.qrDecode
+    root.applyRetentionPolicy()
+    if (root.opened) root.rebuild()
+  }
+
+  // Pause state survives shell restarts.
+  FileView {
+    id: pausedFile
+    path: Quickshell.env("HOME") + "/.local/state/omarchy/clipboard-paused.json"
+    watchChanges: true
+    atomicWrites: true
+    printErrors: false
+    onLoaded: {
+      try { root.paused = !!JSON.parse(text()).paused } catch (e) { root.paused = false }
+    }
+    onLoadFailed: root.paused = false
+  }
+
   FileView {
     id: historyFile
     path: root.statePath
@@ -304,6 +389,7 @@ Item {
   Process {
     id: watchProc
     command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--watch", "python3", root.pluginDir + "/capture.py", "watch"]
+    environment: ({ "CLIPBOARD_QR": root.qrDecode ? "1" : "0" })
     onExited: watchRestartTimer.restart()
     stdout: SplitParser {
       onRead: function(data) { root.addClipboardJson(data) }
@@ -327,32 +413,23 @@ Item {
 
   // ------------------------------------------------------------ window
 
+  // Floating card: an unanchored layer surface is centered by the compositor,
+  // so the picker is just the card — no fullscreen scrim underneath.
   PanelWindow {
     id: panel
     visible: root.opened
-    anchors { top: true; bottom: true; left: true; right: true }
+    width: root.cardWidth
+    height: root.cardHeight
     color: "transparent"
     WlrLayershell.namespace: "tank-clipboard"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
 
-    Rectangle {
-      anchors.fill: parent
-      color: root.scrim
-    }
-
-    MouseArea {
-      anchors.fill: parent
-      onClicked: root.close()
-    }
-
     BorderSurface {
       id: card
-      width: root.cardWidth
-      height: root.cardHeight
+      anchors.fill: parent
       radius: root.cornerRadius
-      anchors.centerIn: parent
       color: root.background
       borderSpec: root.borderSpec
       padding: root.contentMargin
@@ -404,6 +481,9 @@ Item {
             event.accepted = true
           } else if (event.key === Qt.Key_Tab) {
             root.togglePinIndex(root.selectedIndex)
+            event.accepted = true
+          } else if (event.key === Qt.Key_Equal && (event.modifiers & Qt.ControlModifier)) {
+            root.pause(JSON.stringify({ paused: "toggle" }))
             event.accepted = true
           } else if (event.key === Qt.Key_O && (event.modifiers & Qt.ControlModifier)) {
             root.openResult(root.currentResult)
@@ -497,6 +577,7 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: {
+              if (root.paused) return "⏸ paused"
               var shown = root.results.length
               var total = root.history.length
               if (shown === total) return total + " items"
@@ -556,10 +637,29 @@ Item {
           }
         }
 
+        // ---- paused banner
+        Rectangle {
+          width: parent.width
+          height: root.paused ? Style.space(24) : 0
+          visible: root.paused
+          radius: Style.cornerRadius
+          color: Util.alpha(Color.urgent, 0.15)
+
+          Text {
+            anchors.centerIn: parent
+            text: "⏸ Paused — new copies are not being recorded   ·   Ctrl+= to resume"
+            color: Color.urgent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+        }
+
         // ---- list + preview
         Item {
           width: parent.width
-          height: parent.height - root.headerHeight - chipsRow.height - footer.height - Style.space(30)
+          height: parent.height - root.headerHeight - chipsRow.height
+                  - (root.paused ? Style.space(24) + Style.space(10) : 0)
+                  - footer.height - Style.space(30)
 
           ListView {
             id: resultList
@@ -740,6 +840,7 @@ Item {
               { keys: "shift+enter", hint: "copy" },
               { keys: "ctrl+o", hint: "open" },
               { keys: "tab", hint: "pin" },
+              { keys: "ctrl+=", hint: "pause" },
               { keys: "del", hint: "remove" },
               { keys: "esc", hint: "close" }
             ]

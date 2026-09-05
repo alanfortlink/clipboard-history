@@ -174,6 +174,56 @@ function prune(history, limit) {
   return { entries: kept, droppedImagePaths: droppedImagePaths }
 }
 
+// Retention: drop entries older than maxAgeSeconds (-1 = keep forever).
+// Pinned entries are exempt — pins are favorites; delete them explicitly.
+// Returns { entries, droppedImagePaths } like prune().
+function pruneByAge(history, maxAgeSeconds, now) {
+  var values = Array.isArray(history) ? history : []
+  if (maxAgeSeconds === undefined || maxAgeSeconds === null || maxAgeSeconds < 0)
+    return { entries: values, droppedImagePaths: [] }
+  var cutoff = now - maxAgeSeconds
+  var kept = []
+  var droppedImagePaths = []
+  for (var i = 0; i < values.length; i++) {
+    var e = values[i]
+    if (!e) continue
+    if ((Number(e.ts) || 0) < cutoff && !e.pinned) {
+      if (e.type === "image" && e.path) droppedImagePaths.push(e.path)
+      continue
+    }
+    kept.push(e)
+  }
+  return { entries: kept, droppedImagePaths: droppedImagePaths }
+}
+
+// Parse this plugin's settings from the shell.json contents. Every key is
+// optional; unknown keys are ignored. Reads only the plugins[] entry whose
+// id matches.
+function parseSettings(raw, pluginId) {
+  var out = { historyLimit: DEFAULT_LIMIT, maxAgeDays: 0, maxRows: 200, qrDecode: true }
+  var config = null
+  try { config = JSON.parse(String(raw || "{}")) } catch (e) { return out }
+  if (!config || !Array.isArray(config.plugins)) return out
+  for (var i = 0; i < config.plugins.length; i++) {
+    var entry = config.plugins[i]
+    if (!entry || entry.id !== pluginId) continue
+
+    var n = Number(entry.historyLimit)
+    if (isFinite(n) && n >= 1) out.historyLimit = Math.floor(n)
+
+    n = Number(entry.maxAgeDays)
+    if (isFinite(n) && n >= 0) out.maxAgeDays = Math.floor(n)
+
+    n = Number(entry.maxRows)
+    if (isFinite(n) && n >= 1) out.maxRows = Math.floor(n)
+
+    if (typeof entry.qrDecode === "boolean") out.qrDecode = entry.qrDecode
+
+    break
+  }
+  return out
+}
+
 // Build the search-row context Fuzzy.searchRows expects.
 function buildRow(entry, derivedType, now) {
   var content = ""

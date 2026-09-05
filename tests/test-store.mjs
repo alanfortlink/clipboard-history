@@ -126,3 +126,47 @@ test("buildRow makes QR payload searchable", () => {
   const row = Store.buildRow({ type: "image", path: "/x/qr.png", mime: "image/png", qr: "secret-payload-xyz", ts: 1, bytes: 10, app: "", uses: 0 }, "image", 1)
   assert.ok(row.content.includes("secret-payload-xyz"))
 })
+
+test("pruneByAge drops old entries, keeps pins, reports images", () => {
+  const now = 1000000
+  const h = [
+    { id: "new", type: "text", text: "fresh", ts: now - 10, bytes: 1, app: "", uses: 0 },
+    { id: "old", type: "text", text: "old", ts: now - 100 * 86400, bytes: 1, app: "", uses: 0 },
+    { id: "oldimg", type: "image", path: "/tmp/old.png", ts: now - 90 * 86400, bytes: 1, app: "", uses: 0 },
+    { id: "oldpin", type: "text", text: "pinned old", ts: now - 200 * 86400, pinned: true, bytes: 1, app: "", uses: 0 }
+  ]
+  const r = Store.pruneByAge(h, 30 * 86400, now)
+  assert.deepEqual(r.entries.map(e => e.id).sort().join(","), ["new", "oldpin"].sort().join(","))
+  assert.equal(r.droppedImagePaths.length, 1)
+})
+
+test("pruneByAge no-op when forever", () => {
+  const h = [{ id: "a", type: "text", text: "x", ts: 1, bytes: 1, app: "", uses: 0 }]
+  const r = Store.pruneByAge(h, -1, 1000000)
+  assert.equal(r.entries.length, 1)
+  assert.equal(r.droppedImagePaths.length, 0)
+})
+
+test("parseSettings from shell.json", () => {
+  const raw = JSON.stringify({
+    plugins: [
+      { id: "other.plugin" },
+      { id: "tank.clipboard", historyLimit: 500, maxAgeDays: 14, maxRows: 50, qrDecode: false, customKey: 1 }
+    ]
+  })
+  const s = Store.parseSettings(raw, "tank.clipboard")
+  assert.equal(s.historyLimit, 500)
+  assert.equal(s.maxAgeDays, 14)
+  assert.equal(s.maxRows, 50)
+  assert.equal(s.qrDecode, false)
+  const d = Store.parseSettings("{}", "tank.clipboard")
+  assert.equal(d.historyLimit, 1500)
+  assert.equal(d.maxAgeDays, 0)
+  assert.equal(d.maxRows, 200)
+  assert.equal(d.qrDecode, true)
+})
+
+test("parseSettings ignores garbage", () => {
+  const s = Store.parseSettings("not json", "tank.clipboard")
+  assert.equal(s.historyLimit, 1500)
+})

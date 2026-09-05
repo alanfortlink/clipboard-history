@@ -1,35 +1,64 @@
 # clipboard-history
 
-A Raycast/vicinae-style clipboard history manager for Omarchy — implemented as
-an Omarchy shell plugin (`tank.clipboard`, a clone of `omarchy.clipboard`) so it
-rides on the system theme, fonts, and layer-shell infrastructure.
+A Raycast/vicinae-style clipboard history manager for [Omarchy](https://omarchy.org),
+built as an Omarchy shell plugin. Fuzzy search over everything (content, type,
+source app, date — even text inside QR codes), rich per-type previews, and
+full theme integration.
 
-## Features
+<p align="center">
+  <img src="docs/screenshots/picker.png" alt="clipboard-history picker showing a QR code with its decoded content" width="720">
+</p>
 
-- **Rich capture** — a `wl-paste --watch` daemon records every clip with mime
-  type, byte size, source app (via `hyprctl`), timestamp, and image dimensions.
-  Text, images, and `file://` URI lists (file-manager copies) are supported;
-  password-manager clips and binary payloads are skipped.
-- **QR codes** — copied QR images are decoded with `zbarimg`; the payload shows
-  in the list title, the preview pane (copy-selectable), and a metadata chip,
-  and is fuzzy-searchable like any text clip.
-- **Fuzzy search over everything** — fzf-style scoring over content, source
-  app, and type, plus recency, pin, and usage boosts. Query tokens:
+## Highlights
+
+- **Fuzzy search over everything** — fzf-style scoring across content, source
+  app, and type, boosted by recency, pins, and usage. Query tokens:
   - `type:image|link|text|files|code|json|color|email|html|number` (prefix match)
   - `app:firefox` — fuzzy match on the source app
   - `is:pinned`, `today`, `yesterday`, `week`, `<2h`, `>30s`, `<3d`
-- **Raycast-style UI** — search bar with blinking cursor, type filter chips,
-  two-line result rows with type icons / image thumbnails and metadata
-  (type · app · age · size), and a right-hand preview pane:
-  - images rendered inline (with dimensions + size)
-  - colors shown as a swatch with hex/rgb/hsl values
-  - links show the domain headline
-  - JSON is pretty-printed; code/html shown appropriately
-  - file lists with paths; every preview shows metadata chips (app, date,
-    words/lines, bytes, pin/paste counts)
-- **Fully theme-integrated** — colors, spacing, corner radius, borders, and the
-  monospace font all come from the Omarchy shell's `Color`/`Style` singletons;
-  it re-themes itself on `omarchy theme set`.
+- **Rich previews, per type** — images rendered inline, QR codes show their
+  decoded content, colors show a swatch with hex/rgb/hsl, links show the
+  domain, JSON is pretty-printed, file lists show paths — every preview with
+  metadata chips (app, date, words/lines, size, paste counts)
+- **QR codes** — copied QR images are decoded with `zbarimg`; the payload is
+  shown in the list, preview, and is searchable like any text clip
+- **Rich capture** — a `wl-paste --watch` daemon records every clip with mime
+  type, byte size, source app (via `hyprctl`), timestamp, and image dimensions.
+  Text, images, and `file://` URI lists (file-manager copies) are supported;
+  password-manager clips and binary payloads are skipped
+- **Retention control** — configure how much and how long history is kept
+- **Pause/resume** — stop recording new copies without losing your history
+- **Fully theme-integrated** — colors, spacing, corner radius, borders, and
+  the monospace font all come from the Omarchy shell's theme singletons; it
+  re-themes itself on `omarchy theme set`
+
+<p align="center">
+  <img src="docs/screenshots/search.png" alt="fuzzy search for “omarchy” with highlighted matches" width="720">
+</p>
+
+## Install
+
+```bash
+omarchy plugin add https://github.com/alanfortlink/clipboard-history.git --enable
+```
+
+Optional QR support (usually already installed):
+
+```bash
+omarchy pkg add zbar
+```
+
+That's the whole install — `omarchy plugin add` clones the repo, validates the
+manifest, and enables it. It replaces the built-in `omarchy.clipboard`
+(restore it later with `omarchy plugin disable tank.clipboard`), and you bind
+it wherever you like:
+
+```bash
+# ~/.config/hypr/bindings.conf
+bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell shell toggle tank.clipboard
+```
+
+Updating: `omarchy plugin update tank.clipboard` · Uninstall: `omarchy plugin remove tank.clipboard`
 
 ## Keys
 
@@ -40,56 +69,89 @@ rides on the system theme, fonts, and layer-shell infrastructure.
 | `Shift+Enter` | copy only |
 | `Ctrl+O` | open (link → browser, image → editor, file → xdg-open, text → editor) |
 | `Tab` | pin/unpin |
+| `Ctrl+=` | pause/resume recording |
 | `Delete` | remove entry · `Shift+Delete` clear all (with confirm) |
 | `Esc` | clear filter, then close |
 
-## Install
+Pause/resume is also scriptable — useful for automation or a custom binding:
 
 ```bash
-./install.sh
+omarchy-shell shell call tank.clipboard pause '{"paused":"toggle"}'
+omarchy-shell shell call tank.clipboard isPaused
 ```
 
-This symlinks the repo (the plugin root) into
-`~/.config/omarchy/plugins/tank.clipboard`, rescans + enables the plugin (the
-built-in `omarchy.clipboard` is replaced — revert with
-`omarchy plugin disable tank.clipboard`), and rebinds `ALT+SHIFT+V` from
-vicinae to this picker (backing up `bindings.conf`).
+## Configuration
 
-On other machines, install straight from git — no clone/step needed:
+Settings live on the plugin's entry in the `plugins` array of
+`~/.config/omarchy/shell.json` and hot-reload on save:
 
-```bash
-omarchy plugin add <this-repo-git-url> --enable
+```json
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "tank.clipboard",
+      "historyLimit": 1500,
+      "maxAgeDays": 30,
+      "maxRows": 200
+    }
+  ]
+}
 ```
 
-Note: the local dev symlink trips `omarchy plugin validate` (it refuses
-symlinked plugin folders); a git-cloned copy validates clean.
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `historyLimit` | `1500` | max entries kept in history |
+| `maxAgeDays` | `0` (forever) | drop entries older than N days (images get garbage-collected; pinned entries are exempt) |
+| `maxRows` | `200` | max rows the picker shows per search |
+| `qrDecode` | `true` | decode QR codes with `zbarimg` on captured images |
 
-## Layout
+History lives in `~/.local/state/omarchy/clipboard-history-rich.json`; image
+blobs are content-addressed under `~/.local/state/omarchy/clipboard-images/`.
 
-The repo root *is* the plugin folder (so `omarchy plugin add <git-url>` works
-directly — it validates and clones a repo whose root holds `manifest.json`).
+## How it compares
+
+| | built-in `omarchy.clipboard` | [sspaeti's OCR fork](https://github.com/sspaeti/omarchy-clipboard-plugin) | [Clipbasket](https://github.com/clipbasket/clipbasket-omarchy) | vicinae | **clipboard-history** |
+|---|---|---|---|---|---|
+| Fuzzy search | substring | + OCR text | ✓ | ✓ | content + app + type + date tokens (`type:`, `app:`, `<2h`, `today`) |
+| Previews | text/image | — | — | ✓ | images, **QR payloads**, color swatches, JSON pretty-print, links, files |
+| Metadata | basic | basic | SQLite | ✓ | size, source app, dims, word/line counts, pins, paste counts |
+| Retention config | 300 cap | limit | ✓ | ✓ | `historyLimit` + `maxAgeDays` + GC |
+| Pause recording | ✗ | ✗ | ? | ✓ | ✓ (in-picker + IPC) |
+| Theme-integrated shell overlay | ✓ | ✓ | ✓ | own | ✓ (uses Omarchy's theme singletons) |
+
+## Roadmap / ideas
+
+- OCR search: tesseract on captured images so text inside screenshots is
+  searchable ([reference implementation](https://github.com/sspaeti/omarchy-clipboard-plugin))
+- `autoPaste` mode swap: Enter = copy-only, Shift+Enter = paste (walker-style)
+- Small bar widget: last-copied item + paused indicator
+- Snippet editing: edit a pinned entry's content in place
+- Multi-select delete, export/import of history
+- Optional per-app capture exclusions beyond the password-manager hint
+
+## Development
 
 ```
-├── manifest.json      # plugin manifest (clonedFrom omarchy.clipboard)
+├── manifest.json      # plugin manifest (replaces omarchy.clipboard via clonedFrom)
 ├── Clipboard.qml      # picker overlay: search, chips, list, keys, capture watchers
 ├── PreviewPane.qml    # per-type preview + metadata chips
-├── Store.js           # history model: dedup, pins, pruning, ids
+├── Store.js           # history model: dedup, pins, retention, settings parsing
 ├── Fuzzy.js           # query parser, fuzzy matcher, scoring, highlighting
 ├── Classify.js        # type detection, app names, formatting, color math
 ├── capture.py         # clipboard watcher → one JSON line per clip (incl. QR decode)
 ├── paste-entry.sh     # copy + shift-insert paste into the focused window
-└── open-entry.sh      # open with the right app
-
-tests/                 # node --test suites for the JS logic
+├── open-entry.sh      # open with the right app
+├── tests/             # node --test suites for the JS logic
+└── scripts/           # screenshot regeneration helpers
 ```
 
-History is stored in `~/.local/state/omarchy/clipboard-history-rich.json`
-(image blobs content-addressed under `~/.local/state/omarchy/clipboard-images/`).
+- Run logic tests: `tests/run.sh`
+- Validate the manifest: `omarchy plugin validate <checkout-dir>`
+- Regenerate screenshots: `scripts/take-screenshots.sh` (stages demo content
+  and captures the picker keyboard-free over IPC)
+- Hot-reload after edits: `omarchy-shell shell rescanPlugins`
 
-## Development
+## License
 
-- Run logic tests: `tests/run.sh` (49 tests).
-- After editing files in the repo, reload with `omarchy-shell shell rescanPlugins`
-  (the plugin dir is a symlink, so the shell's inotify does not watch repo edits).
-- Data lives in `~/.local/state/omarchy/`; the picker state is independent of
-  the built-in clipboard plugin's `clipboard-history.json`.
+[MIT](LICENSE)
