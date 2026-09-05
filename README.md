@@ -24,6 +24,9 @@ full theme integration.
   shown in the list, preview, and is searchable like any text clip — and if it
   encodes a link, `Ctrl+O` (or the preview's "Open link" chip) opens it in the
   browser directly
+- **OCR search** — captured images are OCR'd with `tesseract`, so text inside
+  screenshots becomes fuzzy-searchable; the recognized text shows in the
+  preview pane and as a metadata chip
 - **Rich capture** — a `wl-paste --watch` daemon records every clip with mime
   type, byte size, source app (via `hyprctl`), timestamp, and image dimensions.
   Text, images, and `file://` URI lists (file-manager copies) are supported;
@@ -44,10 +47,16 @@ full theme integration.
 omarchy plugin add https://github.com/alanfortlink/clipboard-history.git --enable
 ```
 
-Optional QR support (usually already installed):
+Optional extras (usually already installed):
 
 ```bash
-omarchy pkg add zbar
+omarchy pkg add zbar tesseract tesseract-data-eng   # QR decode + OCR search
+```
+
+Already have images in history you'd like OCR'd? One-shot backfill:
+
+```bash
+python3 scripts/backfill-ocr.py          # add --lang deu for other languages
 ```
 
 That's the whole install — `omarchy plugin add` clones the repo, validates the
@@ -113,6 +122,8 @@ Settings live on the plugin's entry in the `plugins` array of
 | `maxAgeDays` | `0` (forever) | drop entries older than N days (images get garbage-collected; pinned entries are exempt) |
 | `maxRows` | `200` | max rows the picker shows per search |
 | `qrDecode` | `true` | decode QR codes with `zbarimg` on captured images |
+| `ocr` | `true` | OCR captured images with `tesseract` (skipped automatically if not installed) |
+| `ocrLang` | `"eng"` | tesseract language(s), e.g. `"deu"` or `"eng+deu"` — install packs with `omarchy pkg add tesseract-data-deu` |
 
 History lives in `~/.local/state/omarchy/clipboard-history-rich.json`; image
 blobs are content-addressed under `~/.local/state/omarchy/clipboard-images/`.
@@ -124,15 +135,15 @@ blobs are content-addressed under `~/.local/state/omarchy/clipboard-images/`.
 | Fuzzy search | substring | + OCR text | ✓ | ✓ | content + app + type + date tokens (`type:`, `app:`, `<2h`, `today`) |
 | Previews | text/image | — | — | ✓ | images, **QR payloads**, color swatches, JSON pretty-print, links, files |
 | Metadata | basic | basic | SQLite | ✓ | size, source app, dims, word/line counts, pins, paste counts |
+| OCR search | ✗ | ✓ (forked for it) | ✗ | ✗ | ✓ (`ocr`, searchable + preview panel) |
 | Retention config | 300 cap | limit | ✓ | ✓ | `historyLimit` + `maxAgeDays` + GC |
 | Pause recording | ✗ | ✗ | ? | ✓ | ✓ (in-picker + IPC) |
 | Theme-integrated shell overlay | ✓ | ✓ | ✓ | own | ✓ (uses Omarchy's theme singletons) |
 
 ## Roadmap / ideas
 
-- OCR search: tesseract on captured images so text inside screenshots is
-  searchable ([reference implementation](https://github.com/sspaeti/omarchy-clipboard-plugin))
 - `autoPaste` mode swap: Enter = copy-only, Shift+Enter = paste (walker-style)
+- OCR language auto-detect / confidence thresholds
 - Small bar widget: last-copied item + paused indicator
 - Snippet editing: edit a pinned entry's content in place
 - Multi-select delete, export/import of history
@@ -147,7 +158,7 @@ blobs are content-addressed under `~/.local/state/omarchy/clipboard-images/`.
 ├── Store.js           # history model: dedup, pins, retention, settings parsing
 ├── Fuzzy.js           # query parser, fuzzy matcher, scoring, highlighting
 ├── Classify.js        # type detection, app names, formatting, color math
-├── capture.py         # clipboard watcher → one JSON line per clip (incl. QR decode)
+├── capture.py         # clipboard watcher → one JSON line per clip (QR + OCR)
 ├── paste-entry.sh     # copy + shift-insert paste into the focused window
 ├── open-entry.sh      # open with the right app
 ├── tests/             # node --test suites for the JS logic

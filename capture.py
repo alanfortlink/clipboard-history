@@ -157,7 +157,7 @@ def decode_ocr(path, lang):
         return None
     try:
         r = subprocess.run(
-            ["tesseract", path, "stdout", "-l", lang, "--quiet"],
+            ["tesseract", path, "stdout", "-l", lang],
             capture_output=True, timeout=30
         )
         if r.returncode != 0:
