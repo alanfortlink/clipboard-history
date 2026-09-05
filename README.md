@@ -61,7 +61,7 @@ python3 scripts/backfill-ocr.py          # add --lang deu for other languages
 
 That's the whole install — `omarchy plugin add` clones the repo, validates the
 manifest, and enables it. It replaces the built-in `omarchy.clipboard`
-(restore it later with `omarchy plugin disable tank.clipboard`).
+(restore it later with `omarchy plugin disable alanfortlink.clipboard`).
 
 Omarchy's default `Super+Ctrl+V` (and `Super+Shift+V`) already routes to it
 via the clone mechanism. For a custom binding, edit the **live** config —
@@ -70,12 +70,12 @@ but is not sourced):
 
 ```lua
 o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)",
-  "omarchy-shell shell toggle tank.clipboard")
+  "omarchy-shell shell toggle alanfortlink.clipboard")
 ```
 
 (If your config is still legacy `bindings.conf`: `bindd = ALT SHIFT, V, …`.)
 
-Updating: `omarchy plugin update tank.clipboard` · Uninstall: `omarchy plugin remove tank.clipboard`
+Updating: `omarchy plugin update alanfortlink.clipboard` · Uninstall: `omarchy plugin remove alanfortlink.clipboard`
 
 ## Keys
 
@@ -93,8 +93,8 @@ Updating: `omarchy plugin update tank.clipboard` · Uninstall: `omarchy plugin r
 Pause/resume is also scriptable — useful for automation or a custom binding:
 
 ```bash
-omarchy-shell shell call tank.clipboard pause '{"paused":"toggle"}'
-omarchy-shell shell call tank.clipboard isPaused
+omarchy-shell shell call alanfortlink.clipboard pause '{"paused":"toggle"}'
+omarchy-shell shell call alanfortlink.clipboard isPaused
 ```
 
 ## Configuration
@@ -107,7 +107,7 @@ Settings live on the plugin's entry in the `plugins` array of
   "version": 1,
   "plugins": [
     {
-      "id": "tank.clipboard",
+      "id": "alanfortlink.clipboard",
       "historyLimit": 1500,
       "maxAgeDays": 30,
       "maxRows": 200

@@ -82,7 +82,7 @@ Item {
   }
 
   // ------------------------------------------------------------ pause
-  // Toggle via IPC:  omarchy-shell shell call tank.clipboard pause '{"paused":true}'
+  // Toggle via IPC:  omarchy-shell shell call alanfortlink.clipboard pause '{"paused":true}'
   // (or {"paused":false}, or {"paused":"toggle"}), and Ctrl+Space in the picker.
   function setPaused(next) {
     root.paused = !!next
@@ -104,7 +104,7 @@ Item {
 
   function isPaused() { return JSON.stringify({ paused: root.paused }) }
 
-  // Screenshot helper: omarchy-shell shell call tank.clipboard debugSetFilter '{"text":"…"}'
+  // Screenshot helper: omarchy-shell shell call alanfortlink.clipboard debugSetFilter '{"text":"…"}'
   // Opens the picker with a preset query so scripts can capture it keyboard-free.
   function debugSetFilter(payloadJson) {
     var p = {}
@@ -319,7 +319,7 @@ Item {
   PointerMoveGate { id: pointerGate; referenceItem: card }
 
   // User settings live on this plugin's entry in shell.json (hot-reloads):
-  // { "id": "tank.clipboard", "historyLimit": 1500, "maxAgeDays": 30, "maxRows": 200 }
+  // { "id": "alanfortlink.clipboard", "historyLimit": 1500, "maxAgeDays": 30, "maxRows": 200 }
   FileView {
     id: shellConfigFile
     path: Quickshell.env("HOME") + "/.config/omarchy/shell.json"
@@ -331,7 +331,7 @@ Item {
   }
 
   function applySettings(raw) {
-    var s = Store.parseSettings(raw, "tank.clipboard")
+    var s = Store.parseSettings(raw, "alanfortlink.clipboard")
     var needsWatchRestart = s.qrDecode !== root.qrDecode || s.ocr !== root.ocr
       || s.ocrLang !== root.ocrLang
     root.historyLimit = s.historyLimit
@@ -437,7 +437,7 @@ Item {
     width: root.cardWidth
     height: root.cardHeight
     color: "transparent"
-    WlrLayershell.namespace: "tank-clipboard"
+    WlrLayershell.namespace: "alanfortlink-clipboard"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore

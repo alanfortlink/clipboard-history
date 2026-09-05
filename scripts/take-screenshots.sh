@@ -10,21 +10,21 @@ mkdir -p "$OUT"
 
 crop_shot() { # <output.png> — open via IPC first; caller decides what's on screen
   local out=$1
-  omarchy-shell shell hide tank.clipboard
+  omarchy-shell shell hide alanfortlink.clipboard
   sleep 0.4
   local geo
   case $out in
     "$OUT/search.png")
-      omarchy-shell shell call tank.clipboard debugSetFilter '{"text":"omarchy"}'
+      omarchy-shell shell call alanfortlink.clipboard debugSetFilter '{"text":"omarchy"}'
       ;;
     *)
-      omarchy-shell shell toggle tank.clipboard
+      omarchy-shell shell toggle alanfortlink.clipboard
       ;;
   esac
   sleep 1.5
   local geo; geo=$(python3 "$REPO_DIR/scripts/physical-crop.py")
   grim /tmp/clipshot-full.png
-  omarchy-shell shell hide tank.clipboard
+  omarchy-shell shell hide alanfortlink.clipboard
   sleep 0.4
   magick /tmp/clipshot-full.png -crop "$geo" +repage "$out"
 }

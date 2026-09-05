@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Clipboard capture for the tank.clipboard Omarchy shell plugin.
+"""Clipboard capture for the alanfortlink.clipboard Omarchy shell plugin.
 
 Invoked by `wl-paste --watch` (payload on stdin is ignored — we probe
 ourselves so a single watcher covers every mime) or with no args to snapshot

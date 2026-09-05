@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "tank.clipboard",
+  "id": "alanfortlink.clipboard",
   "name": "Clipboard History",
   "version": "1.0.0",
-  "author": "tank",
+  "author": "alanfortlink",
   "description": "Raycast-style clipboard history: fuzzy search over content, type, app and date, with rich per-type previews",
   "kinds": [
     "overlay"

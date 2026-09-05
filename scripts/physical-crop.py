@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print the PHYSICAL-pixel crop geometry (WxH+X+Y) of the tank-clipboard
+"""Print the PHYSICAL-pixel crop geometry (WxH+X+Y) of the alanfortlink-clipboard
 layer surface on grim's combined framebuffer. Monitors report logical .x/.y
 with .scale; layers report logical xywh; grim captures physical pixels."""
 import json
@@ -7,7 +7,7 @@ import re
 import subprocess
 
 layers = subprocess.run(["hyprctl", "layers"], capture_output=True, text=True).stdout
-m = re.search(r"xywh:\s*(\d+) (\d+) (\d+) (\d+).*namespace: tank-clipboard", layers)
+m = re.search(r"xywh:\s*(\d+) (\d+) (\d+) (\d+).*namespace: alanfortlink-clipboard", layers)
 if not m:
     raise SystemExit(1)
 lx, ly, lw, lh = map(int, m.groups())

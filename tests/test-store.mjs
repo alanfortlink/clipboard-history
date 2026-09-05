@@ -151,15 +151,15 @@ test("parseSettings from shell.json", () => {
   const raw = JSON.stringify({
     plugins: [
       { id: "other.plugin" },
-      { id: "tank.clipboard", historyLimit: 500, maxAgeDays: 14, maxRows: 50, qrDecode: false, customKey: 1 }
+      { id: "alanfortlink.clipboard", historyLimit: 500, maxAgeDays: 14, maxRows: 50, qrDecode: false, customKey: 1 }
     ]
   })
-  const s = Store.parseSettings(raw, "tank.clipboard")
+  const s = Store.parseSettings(raw, "alanfortlink.clipboard")
   assert.equal(s.historyLimit, 500)
   assert.equal(s.maxAgeDays, 14)
   assert.equal(s.maxRows, 50)
   assert.equal(s.qrDecode, false)
-  const d = Store.parseSettings("{}", "tank.clipboard")
+  const d = Store.parseSettings("{}", "alanfortlink.clipboard")
   assert.equal(d.historyLimit, 1500)
   assert.equal(d.maxAgeDays, 0)
   assert.equal(d.maxRows, 200)
@@ -167,7 +167,7 @@ test("parseSettings from shell.json", () => {
 })
 
 test("parseSettings ignores garbage", () => {
-  const s = Store.parseSettings("not json", "tank.clipboard")
+  const s = Store.parseSettings("not json", "alanfortlink.clipboard")
   assert.equal(s.historyLimit, 1500)
 })
 
@@ -182,8 +182,8 @@ test("ocr passes through normalize, dedup, and search", () => {
 })
 
 test("parseSettings ocr keys", () => {
-  const raw = JSON.stringify({ plugins: [{ id: "tank.clipboard", ocr: false, ocrLang: "deu" }] })
-  const s = Store.parseSettings(raw, "tank.clipboard")
+  const raw = JSON.stringify({ plugins: [{ id: "alanfortlink.clipboard", ocr: false, ocrLang: "deu" }] })
+  const s = Store.parseSettings(raw, "alanfortlink.clipboard")
   assert.equal(s.ocr, false)
   assert.equal(s.ocrLang, "deu")
 })

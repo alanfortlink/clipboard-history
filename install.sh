@@ -1,7 +1,7 @@
 #!/bin/bash
-# Install the tank.clipboard Omarchy shell plugin from this repo.
+# Install the alanfortlink.clipboard Omarchy shell plugin from this repo.
 #
-# - symlinks the repo root (the plugin folder) into ~/.config/omarchy/plugins/tank.clipboard
+# - symlinks the repo root (the plugin folder) into ~/.config/omarchy/plugins/alanfortlink.clipboard
 # - rescans + enables it (shell.json gets plugins[] entry; the built-in
 #   omarchy.clipboard is recorded in disabledPlugins[] and routed here)
 # - rebinds ALT+SHIFT+V from vicinae to this picker (backs up bindings.conf)
@@ -10,7 +10,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$REPO_DIR"
 PLUGINS_DIR="$HOME/.config/omarchy/plugins"
-PLUGIN_ID="tank.clipboard"
+PLUGIN_ID="alanfortlink.clipboard"
 BINDINGS="$HOME/.config/hypr/bindings.conf"
 
 echo "==> Linking plugin into $PLUGINS_DIR/$PLUGIN_ID"
@@ -46,7 +46,7 @@ if [[ -f $HOME/.config/hypr/bindings.lua ]]; then
   LUA="$HOME/.config/hypr/bindings.lua"
   if grep -q 'ALT + SHIFT + V' "$LUA"; then
     cp "$LUA" "$LUA.bak.$(date +%s)"
-    sed -i 's|^o.bind("ALT + SHIFT + V", "Clipboard manager (vicinae)", "vicinae deeplink vicinae://launch/clipboard/history")|o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)", "omarchy-shell shell toggle tank.clipboard")|' "$LUA"
+    sed -i 's|^o.bind("ALT + SHIFT + V", "Clipboard manager (vicinae)", "vicinae deeplink vicinae://launch/clipboard/history")|o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)", "omarchy-shell shell toggle alanfortlink.clipboard")|' "$LUA"
     echo "    rebound in bindings.lua (vicinae binding replaced)"
     rebound=1
   fi
@@ -54,7 +54,7 @@ fi
 if [[ $rebound != 1 && -f $HOME/.config/hypr/bindings.conf ]] && grep -q "^bindd = ALT SHIFT, V, " "$HOME/.config/hypr/bindings.conf"; then
   CONF="$HOME/.config/hypr/bindings.conf"
   cp "$CONF" "$CONF.bak.$(date +%s)"
-  sed -i 's|^bindd = ALT SHIFT, V, .*|bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell shell toggle tank.clipboard|' "$CONF"
+  sed -i 's|^bindd = ALT SHIFT, V, .*|bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell shell toggle alanfortlink.clipboard|' "$CONF"
   echo "    rebound in bindings.conf"
   rebound=1
 fi
@@ -62,7 +62,7 @@ if (( rebound )); then
   hyprctl reload >/dev/null
 else
   echo "    no ALT+SHIFT+V binding found — add manually to ~/.config/hypr/bindings.lua:"
-  echo '    o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)", "omarchy-shell shell toggle tank.clipboard")'
+  echo '    o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)", "omarchy-shell shell toggle alanfortlink.clipboard")'
 fi
 
 echo

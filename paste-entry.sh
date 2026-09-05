@@ -1,5 +1,5 @@
 #!/bin/bash
-# Paste (or just copy) a history entry from the tank.clipboard store.
+# Paste (or just copy) a history entry from the alanfortlink.clipboard store.
 # Usage: paste-entry.sh <entry-id> [--copy-only]
 set -euo pipefail
 

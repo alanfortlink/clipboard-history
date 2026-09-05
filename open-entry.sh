@@ -1,5 +1,5 @@
 #!/bin/bash
-# Open a history entry from the tank.clipboard store with the right app.
+# Open a history entry from the alanfortlink.clipboard store with the right app.
 # Usage: open-entry.sh <entry-id>
 set -euo pipefail
 
