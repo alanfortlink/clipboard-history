@@ -30,14 +30,9 @@ open_text() {
       exec omarchy-launch-browser "$url"
     fi
   fi
-  local dir file
-  dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/clipboard-open"
-  mkdir -p "$dir"
-  # Prune temp copies older than a week; nothing else reclaims them.
-  find "$dir" -type f -name 'clipboard.*.txt' -mtime +7 -delete 2>/dev/null || true
-  file=$(mktemp --tmpdir="$dir" clipboard.XXXXXX.txt)
-  printf '%s' "$text" >"$file"
-  exec omarchy-launch-editor "$file"
+  # Text entries are clipboard data, not editor documents. Return pastes them;
+  # Ctrl+O/Alt+Enter must not unexpectedly open Vim for shell commands or prose.
+  exit 0
 }
 
 case $(jq -r '.type' <<<"$entry") in
