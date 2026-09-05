@@ -5,7 +5,7 @@
 # - rescans + enables it (shell.json gets plugins[] entry; the built-in
 #   omarchy.clipboard is recorded in disabledPlugins[] and routed here)
 # - checks and installs dependencies transparently (QR/OCR degrade without them)
-# - rebinds ALT+SHIFT+V from vicinae to this picker (backs up bindings.lua/.conf)
+# - binds SUPER+SHIFT+V and ALT+SHIFT+V directly to this picker (with backup)
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,36 +58,52 @@ fi
 echo "==> Enabling $PLUGIN_ID (replaces built-in omarchy.clipboard)"
 omarchy plugin enable "$PLUGIN_ID"
 
-echo "==> Rebinding ALT+SHIFT+V"
-# Omarchy's live config may be bindings.lua (Quattro) or legacy bindings.conf —
-# edit whichever exists and let the other alone.
+echo "==> Binding SUPER+SHIFT+V and ALT+SHIFT+V directly to $PLUGIN_ID"
+# Do not route through `shell toggle`: plugin rescans can leave its panel Loader
+# stale. The plugin-owned IPC target always controls the mapped picker window.
 rebound=0
 if [[ -f $HOME/.config/hypr/bindings.lua ]]; then
   LUA="$HOME/.config/hypr/bindings.lua"
-  if grep -q 'omarchy-shell shell toggle alanfortlink.clipboard' "$LUA"; then
-    echo "    bindings.lua already points at alanfortlink.clipboard"
-    rebound=1
-  elif grep -q 'ALT + SHIFT + V' "$LUA"; then
+  tmp=$(mktemp)
+  python3 - "$LUA" >"$tmp" <<'PY'
+import re, sys
+text = open(sys.argv[1]).read()
+command = "omarchy-shell alanfortlink.clipboard toggle"
+for chord in ("SUPER + SHIFT + V", "ALT + SHIFT + V"):
+    line = f'o.bind("{chord}", "Clipboard manager (clipboard-history)", "{command}")'
+    pattern = re.compile(r'^\s*o\.bind\("' + re.escape(chord) + r'".*$', re.M)
+    if pattern.search(text):
+        text = pattern.sub(line, text, count=1)
+    else:
+        text = text.rstrip() + "\n" + line + "\n"
+sys.stdout.write(text)
+PY
+  if ! cmp -s "$LUA" "$tmp"; then
     cp "$LUA" "$LUA.bak.$(date +%s)"
-    sed -i 's|^o.bind("ALT + SHIFT + V", "Clipboard manager (vicinae)", "vicinae deeplink vicinae://launch/clipboard/history")|o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)", "omarchy-shell shell toggle alanfortlink.clipboard")|' "$LUA"
-    echo "    rebound in bindings.lua (vicinae binding replaced)"
-    rebound=1
+    mv "$tmp" "$LUA"
+    echo "    updated bindings.lua (backup created)"
+  else
+    rm -f "$tmp"
+    echo "    bindings.lua already correct"
   fi
-fi
-if [[ $rebound != 1 && -f $HOME/.config/hypr/bindings.conf ]] && grep -q "^bindd = ALT SHIFT, V, " "$HOME/.config/hypr/bindings.conf"; then
+  rebound=1
+elif [[ -f $HOME/.config/hypr/bindings.conf ]]; then
   CONF="$HOME/.config/hypr/bindings.conf"
   cp "$CONF" "$CONF.bak.$(date +%s)"
-  sed -i 's|^bindd = ALT SHIFT, V, .*|bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell shell toggle alanfortlink.clipboard|' "$CONF"
-  echo "    rebound in bindings.conf"
+  sed -i '/^bindd = \(SUPER\|ALT\) SHIFT, V, /d' "$CONF"
+  printf '%s\n' \
+    'bindd = SUPER SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell alanfortlink.clipboard toggle' \
+    'bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell alanfortlink.clipboard toggle' >>"$CONF"
+  echo "    updated bindings.conf (backup created)"
   rebound=1
 fi
 if (( rebound )); then
   hyprctl reload >/dev/null
 else
-  echo "    no ALT+SHIFT+V binding found — add manually to ~/.config/hypr/bindings.lua:"
-  echo '    o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)", "omarchy-shell shell toggle alanfortlink.clipboard")'
+  echo "ERROR: no live Hyprland bindings file found" >&2
+  exit 1
 fi
 
 echo
-echo "Done. Press ALT+SHIFT+V to open the clipboard picker."
+echo "Done. Press SUPER+SHIFT+V (or ALT+SHIFT+V) to open the clipboard picker."
 echo "Edit code in $REPO_DIR; run 'omarchy-shell shell rescanPlugins' after changes."

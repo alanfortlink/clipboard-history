@@ -68,8 +68,8 @@ For a custom binding, edit the **live** config —
 but is not sourced):
 
 ```lua
-o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)",
-  "omarchy-shell shell toggle alanfortlink.clipboard")
+o.bind("SUPER + SHIFT + V", "Clipboard manager (clipboard-history)",
+  "omarchy-shell alanfortlink.clipboard toggle")
 ```
 
 (If your config is still legacy `bindings.conf`: `bindd = ALT SHIFT, V, …`.)
@@ -92,8 +92,8 @@ Updating: `omarchy plugin update alanfortlink.clipboard` · Uninstall: `omarchy 
 Pause/resume is also scriptable — useful for automation or a custom binding:
 
 ```bash
-omarchy-shell shell call alanfortlink.clipboard pause '{"paused":"toggle"}'
-omarchy-shell shell call alanfortlink.clipboard isPaused
+omarchy-shell alanfortlink.clipboard pause '{"paused":"toggle"}'
+omarchy-shell alanfortlink.clipboard isPaused
 ```
 
 ## Configuration
