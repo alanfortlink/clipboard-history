@@ -120,6 +120,7 @@ Item {
     root.history = Store.parseHistory(raw, Math.floor(Date.now() / 1000))
     root.typeCache = {}
     root.applyRetentionPolicy()
+    root.checkDeps()
     if (root.opened) root.rebuild()
   }
 
@@ -330,6 +331,35 @@ Item {
     onFileChanged: reload()
   }
 
+  // Missing-helper state surfaced IN the picker: banner with the exact
+  // command and a "Run in terminal" button. Nothing launches on its own.
+  property bool depsChecked: false
+  property var missingDeps: [] // [{ name, command }]
+  property string depsPendingSlot: ""
+  function checkDeps() {
+    if (root.depsChecked) return
+    root.depsChecked = true
+    if (root.qrDecode) {
+      depsProc.slot = "qr"
+      depsProc.command = ["bash", "-c", "command -v zbarimg >/dev/null 2>&1 && echo ok || echo missing"]
+      depsProc.running = true
+    }
+    if (root.ocr) {
+      depsProc.slot = "ocr"
+      depsProc.command = ["bash", "-c", "command -v tesseract >/dev/null 2>&1 && echo ok || echo missing"]
+      depsProc.running = true
+    }
+  }
+
+  function depResult(slot, line) {
+    if (String(line).trim() !== "missing") return
+    if (slot === "qr") {
+      root.missingDeps.push({ name: "QR decode", command: "omarchy pkg add zbar" })
+    } else if (slot === "ocr") {
+      root.missingDeps.push({ name: "OCR search", command: "omarchy pkg add tesseract tesseract-data-eng" })
+    }
+  }
+
   function applySettings(raw) {
     var s = Store.parseSettings(raw, "alanfortlink.clipboard")
     var needsWatchRestart = s.qrDecode !== root.qrDecode || s.ocr !== root.ocr
@@ -347,6 +377,7 @@ Item {
       watchRestartTimer.restart()
     }
     root.applyRetentionPolicy()
+    root.checkDeps()
     if (root.opened) root.rebuild()
   }
 
@@ -374,7 +405,14 @@ Item {
     onFileChanged: reload()
   }
 
-  Process { id: depsProc }
+  Process {
+    id: depsProc
+    property string slot: ""
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.depResult(depsProc.slot, text)
+    }
+  }
   Process {
     id: gcProc
     onExited: runNextGc()
@@ -671,11 +709,69 @@ Item {
           }
         }
 
+        // ---- missing-dependency banner: command + run-in-terminal button
+        Rectangle {
+          width: parent.width
+          height: root.missingDeps.length > 0 ? Style.space(24) : 0
+          visible: root.missingDeps.length > 0
+          radius: Style.cornerRadius
+          color: Util.alpha(Color.urgent, 0.15)
+
+          Row {
+            anchors.centerIn: parent
+            spacing: Style.space(8)
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.missingDeps.length > 0
+                    ? root.missingDeps[0].name + " unavailable — run: " + root.missingDeps[0].command
+                    : ""
+              color: Color.urgent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+
+            Rectangle {
+              anchors.verticalCenter: parent.verticalCenter
+              radius: height / 2
+              color: Util.alpha(Color.accent, 0.2)
+              width: runLabel.implicitWidth + Style.space(14)
+              height: Style.space(18)
+              visible: root.missingDeps.length > 0
+
+              Text {
+                id: runLabel
+                anchors.centerIn: parent
+                text: "▶ Run in terminal"
+                color: root.accent
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.bold: true
+              }
+
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                  if (root.missingDeps.length === 0) return
+                  root.close()
+                  var cmd = ""
+                  for (var i = 0; i < root.missingDeps.length; i++)
+                    cmd += (i ? " && " : "") + root.missingDeps[i].command
+                  cmd += '; echo; echo "Done — press Enter to close"; read'
+                  Quickshell.execDetached(["omarchy-launch-terminal", "bash", "-c", cmd])
+                }
+              }
+            }
+          }
+        }
+
         // ---- list + preview
         Item {
           width: parent.width
           height: parent.height - root.headerHeight - chipsRow.height
                   - (root.paused ? Style.space(24) + Style.space(10) : 0)
+                  - (root.missingDeps.length > 0 ? Style.space(24) + Style.space(10) : 0)
                   - footer.height - Style.space(30)
 
           ListView {
@@ -785,11 +881,14 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onPositionChanged: function(mouse) { root.selectFromPointer(row.index, row, mouse) }
-                onClicked: {
+                // A stray click must never paste into the window behind the
+                // picker: single click selects, double click activates.
+                onClicked: function(mouse) {
                   root.cursorActive = true
                   root.selectedIndex = row.index
-                  root.pasteResult(root.currentResult)
+                  if (mouse.clickCount === 2) root.pasteResult(root.currentResult)
                 }
+                onDoubleClicked: root.pasteResult(root.currentResult)
               }
             }
           }

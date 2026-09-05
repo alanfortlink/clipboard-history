@@ -22,8 +22,13 @@ open_text() {
   if [[ -z $url && $text =~ ^[[:space:]]*([[:alnum:]][[:alnum:].-]+\.[[:alpha:]]{2,})(/[^[:space:]]*)?[[:space:]]*$ ]]; then
     url="https://${BASH_REMATCH[1]}${BASH_REMATCH[2]}"
   fi
+  # Only open the browser when the WHOLE entry is that link. Text that merely
+  # contains a URL — like a copied shell command — must not launch anything.
   if [[ -n $url ]]; then
-    exec omarchy-launch-browser "$url"
+    local compact=${text//[[:space:]]/}
+    if [[ ${compact,,} == ${url,,}* ]]; then
+      exec omarchy-launch-browser "$url"
+    fi
   fi
   local dir file
   dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/clipboard-open"
