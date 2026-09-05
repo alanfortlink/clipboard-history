@@ -163,7 +163,7 @@ Item {
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.topMargin: Style.space(10)
-    height: 1
+    height: Style.normalBorderWidth
     color: root.lineColor
   }
 
@@ -224,7 +224,7 @@ Item {
       height: Style.space(120)
       radius: Style.cornerRadius
       color: root.hexRe.test(root.rawSafe()) ? root.rawSafe() : "transparent"
-      border.width: 1
+      border.width: Style.normalBorderWidth
       border.color: root.lineColor
     }
 
@@ -322,7 +322,7 @@ Item {
       Rectangle {
         anchors.fill: img
         color: "transparent"
-        border.width: 1
+        border.width: Style.normalBorderWidth
         border.color: root.lineColor
         radius: Style.space(4)
         visible: img.status === Image.Ready

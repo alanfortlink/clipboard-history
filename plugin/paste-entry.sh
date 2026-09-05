@@ -23,7 +23,7 @@ case "$type" in
     ;;
   files)
     while IFS= read -r p; do
-      printf 'file://%s\n' "$p"
+      printf 'file://%s\n' "$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$p")"
     done < <(jq -r '.paths[]' <<<"$entry") | wl-copy --type text/uri-list
     ;;
   *)

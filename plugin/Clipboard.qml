@@ -88,18 +88,27 @@ Item {
     var pruned = Store.prune(root.history, root.historyLimit)
     root.history = pruned.entries
     historyFile.setText(JSON.stringify(root.history, null, 1) + "\n")
-    if (pruned.droppedImagePaths.length > 0) {
-      var cmd = ["rm", "-f"].concat(pruned.droppedImagePaths)
-      gcProc.command = cmd
-      gcProc.running = true
-    }
+    if (pruned.droppedImagePaths.length > 0) queueGc(pruned.droppedImagePaths)
+  }
+
+  // Serialize GC batches: a single reusable Process would silently drop
+  // overlapping runs, so pending paths queue until the current rm exits.
+  property var gcQueue: []
+  function queueGc(paths) {
+    root.gcQueue.push(paths)
+    if (!gcProc.running) runNextGc()
+  }
+  function runNextGc() {
+    if (root.gcQueue.length === 0) return
+    gcProc.command = ["rm", "-f"].concat(root.gcQueue.shift())
+    gcProc.running = true
   }
 
   function addClipboardJson(line) {
     var entry = null
     try { entry = JSON.parse(String(line || "")) } catch (e) { return }
     if (!entry) return
-    root.history = Store.addEntry(root.history, entry, root.historyLimit, Math.floor(Date.now() / 1000))
+    root.history = Store.addEntry(root.history, entry, Math.floor(Date.now() / 1000))
     root.saveHistory()
     if (root.opened) root.rebuild()
   }
@@ -242,10 +251,7 @@ Item {
     root.history = []
     root.typeCache = {}
     root.saveHistory()
-    if (dropped.length > 0) {
-      gcProc.command = ["rm", "-f"].concat(dropped)
-      gcProc.running = true
-    }
+    if (dropped.length > 0) queueGc(dropped)
     root.selectedIndex = 0
     root.clearConfirmOpen = false
     root.rebuild()
@@ -271,7 +277,10 @@ Item {
     onFileChanged: reload()
   }
 
-  Process { id: gcProc }
+  Process {
+    id: gcProc
+    onExited: runNextGc()
+  }
 
   // Reap watchers left behind by a previous shell instance, then start our
   // own. pdeathsig kills them whenever the shell exits.
@@ -674,7 +683,7 @@ Item {
             anchors.bottom: parent.bottom
             anchors.left: parent.left
             anchors.leftMargin: root.listWidth + Style.space(6)
-            width: 1
+            width: Style.normalBorderWidth
             color: root.lineColor
           }
 

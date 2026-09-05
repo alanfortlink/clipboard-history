@@ -65,10 +65,11 @@ function parseQuery(q) {
       var canonical = TYPE_ALIASES[wanted]
       if (canonical) { out.type = canonical; continue }
       // prefix match: "type:im" → image
+      var matchedType = ""
       for (var key in TYPE_ALIASES) {
-        if (key.indexOf(wanted) === 0) { out.type = TYPE_ALIASES[key]; break }
+        if (key.indexOf(wanted) === 0) { matchedType = TYPE_ALIASES[key]; break }
       }
-      if (out.type) continue
+      if (matchedType) { out.type = matchedType; continue }
       // unknown type — treat the whole token as a term
       out.terms.push(tok)
       continue
@@ -91,7 +92,7 @@ function parseQuery(q) {
 
     if (AGE_WORDS[lower] !== undefined) {
       out.maxAge = AGE_WORDS[lower]
-      if (lower === "yesterday") out.minAge = 0 // refined below relative to now; caller passes now
+      if (lower === "yesterday") out.minAge = 86400
       continue
     }
 
@@ -217,14 +218,6 @@ function ageFilterOk(parsed, ageSeconds) {
   if (parsed.maxAge >= 0 && ageSeconds > parsed.maxAge) return false
   if (parsed.minAge >= 0 && ageSeconds < parsed.minAge) return false
   return true
-}
-
-// "yesterday" means older than 24h but within 48h.
-function refineYesterday(parsed, now) {
-  // Only applies when the query contained the bare word "yesterday" and no
-  // explicit duration bounds; approximated by caller passing minAge via the
-  // maxAge=172800 already set. We require age > 86400 - slack handled here.
-  return parsed
 }
 
 function recencyBonus(ts, now) {

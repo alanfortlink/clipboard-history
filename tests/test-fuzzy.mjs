@@ -156,7 +156,15 @@ test("highlightFirstLine multiline only first line", () => {
   assert.ok(!html.includes("\n"))
 })
 
-test("parseQuery yesterday bounds", () => {
+test("parseQuery yesterday excludes today", () => {
   const q = Fuzzy.parseQuery("yesterday")
   assert.equal(q.maxAge, 172800)
+  assert.equal(q.minAge, 86400)
+})
+
+test("regression: unknown type: token becomes a term even after a known one", () => {
+  const q = Fuzzy.parseQuery("type:image type:foo")
+  assert.equal(q.type, "image")
+  assert.equal(q.terms.length, 1)
+  assert.equal(q.terms[0], "type:foo")
 })

@@ -86,17 +86,17 @@ function parseHistory(raw, now) {
 }
 
 // Add (or bump) an entry; newest first. Keeps pin state and usage count of
-// the existing copy when the same content is copied again.
-function addEntry(history, entry, limit, now) {
+// the existing copy when the same content is copied again. Does NOT truncate
+// to the limit: the caller prunes via prune() so evicted image blobs can be
+// garbage-collected (truncating here would leak them).
+function addEntry(history, entry, now) {
   var normalized = normalize(entry, now)
-  var max = limit === undefined || limit === null ? DEFAULT_LIMIT : Number(limit)
-  if (isNaN(max) || max < 1) max = DEFAULT_LIMIT
-  if (!normalized) return Array.isArray(history) ? history.slice(0, max) : []
+  if (!normalized) return Array.isArray(history) ? history.slice() : []
 
   var key = entryKey(normalized)
   var next = [normalized]
   var values = Array.isArray(history) ? history : []
-  for (var i = 0; i < values.length && next.length < max; i++) {
+  for (var i = 0; i < values.length; i++) {
     var existing = normalize(values[i], now)
     if (!existing) continue
     if (entryKey(existing) === key) {

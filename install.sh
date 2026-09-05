@@ -37,7 +37,7 @@ echo "==> Enabling $PLUGIN_ID (replaces built-in omarchy.clipboard)"
 omarchy plugin enable "$PLUGIN_ID"
 
 echo "==> Rebinding ALT+SHIFT+V"
-if [[ -f $BINDINGS ]] && grep -q "ALT SHIFT, V" "$BINDINGS"; then
+if [[ -f $BINDINGS ]] && grep -q "^bindd = ALT SHIFT, V, " "$BINDINGS"; then
   cp "$BINDINGS" "$BINDINGS.bak.$(date +%s)"
   sed -i 's|^bindd = ALT SHIFT, V, .*|bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell shell toggle tank.clipboard|' "$BINDINGS"
   hyprctl reload >/dev/null

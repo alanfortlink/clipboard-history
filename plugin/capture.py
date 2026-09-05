@@ -99,6 +99,7 @@ def capture_image(types, app):
                 pass
             return
     emit(entry)
+    return True
 
 
 def decode_text(data):
@@ -159,7 +160,13 @@ def capture_text(types, app):
 
 
 def main():
-    sys.stdin.close()  # watcher payload unused; we probe ourselves
+    # The watcher pipes the clipboard payload to us; wl-clipboard blocks on
+    # writes if we close the pipe early, so drain it instead (we still probe
+    # types ourselves below).
+    try:
+        sys.stdin.buffer.read()
+    except Exception:
+        pass
     types = list_types()
     if not types:
         return

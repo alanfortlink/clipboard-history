@@ -46,11 +46,24 @@ test("addEntry dedupes and bumps to front, keeps pin/uses", () => {
   assert.equal(h[0].uses, 3)
 })
 
-test("addEntry respects limit", () => {
+test("addEntry keeps all entries; prune truncates", () => {
   let h = []
-  for (let i = 0; i < 20; i++) h = Store.addEntry(h, { type: "text", text: "t" + i, ts: i }, 5)
-  assert.equal(h.length, 5)
-  assert.equal(h[0].text, "t19")
+  for (let i = 0; i < 20; i++) h = Store.addEntry(h, { type: "text", text: "t" + i, ts: i })
+  assert.equal(h.length, 20)
+  const r = Store.prune(h, 5)
+  assert.equal(r.entries.length, 5)
+  assert.equal(r.entries[0].text, "t19")
+})
+
+test("regression: addEntry at limit must not leak evicted images (prune reports them)", () => {
+  // Images beyond the limit are only reclaimable if prune() sees them,
+  // which is why addEntry must not truncate by itself.
+  let h = []
+  for (let i = 0; i < 10; i++)
+    h = Store.addEntry(h, { type: i < 2 ? "image" : "text", path: "/tmp/x" + i + ".png", text: "t" + i, ts: i })
+  const r = Store.prune(h, 5)
+  assert.ok(r.droppedImagePaths.includes("/tmp/x0.png"))
+  assert.ok(r.droppedImagePaths.includes("/tmp/x1.png"))
 })
 
 test("removeById / findById / togglePin / touch", () => {

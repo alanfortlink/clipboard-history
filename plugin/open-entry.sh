@@ -28,6 +28,8 @@ open_text() {
   local dir file
   dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/clipboard-open"
   mkdir -p "$dir"
+  # Prune temp copies older than a week; nothing else reclaims them.
+  find "$dir" -type f -name 'clipboard.*.txt' -mtime +7 -delete 2>/dev/null || true
   file=$(mktemp --tmpdir="$dir" clipboard.XXXXXX.txt)
   printf '%s' "$text" >"$file"
   exec omarchy-launch-editor "$file"
@@ -43,7 +45,7 @@ case $(jq -r '.type' <<<"$entry") in
     exec xdg-open "$path"
     ;;
   files)
-    first=$(jq -r '.paths[0]' <<<"$entry")
+    first=$(jq -r '.paths[0] // empty' <<<"$entry")
     [[ -n $first ]] || exit 0
     exec xdg-open "$first"
     ;;
