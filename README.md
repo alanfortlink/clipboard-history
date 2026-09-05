@@ -52,13 +52,19 @@ omarchy pkg add zbar
 
 That's the whole install — `omarchy plugin add` clones the repo, validates the
 manifest, and enables it. It replaces the built-in `omarchy.clipboard`
-(restore it later with `omarchy plugin disable tank.clipboard`), and you bind
-it wherever you like:
+(restore it later with `omarchy plugin disable tank.clipboard`).
 
-```bash
-# ~/.config/hypr/bindings.conf
-bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell shell toggle tank.clipboard
+Omarchy's default `Super+Ctrl+V` (and `Super+Shift+V`) already routes to it
+via the clone mechanism. For a custom binding, edit the **live** config —
+`~/.config/hypr/bindings.lua` on Quattro (a plain `bindings.conf` may exist
+but is not sourced):
+
+```lua
+o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)",
+  "omarchy-shell shell toggle tank.clipboard")
 ```
+
+(If your config is still legacy `bindings.conf`: `bindd = ALT SHIFT, V, …`.)
 
 Updating: `omarchy plugin update tank.clipboard` · Uninstall: `omarchy plugin remove tank.clipboard`
 
