@@ -16,6 +16,7 @@ binary payloads are skipped silently.
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -119,6 +120,10 @@ def capture_image(types, app):
     if qr:
         entry["qr"] = qr
 
+    ocr = decode_ocr(path, os.environ.get("CLIPBOARD_OCR_LANG", "eng"))
+    if ocr:
+        entry["ocr"] = ocr
+
     emit(entry)
     return True
 
@@ -141,6 +146,30 @@ def decode_text(data):
         if nul_control / max(1, len(text)) > 0.05:
             return None
     return text
+
+
+def decode_ocr(path, lang):
+    """Recognize text in an image with tesseract; None when unavailable/binary."""
+    if os.environ.get("CLIPBOARD_OCR", "1") == "0":
+        return None
+    # Tesseract is optional — degrade to no-OCR when missing.
+    if shutil.which("tesseract") is None:
+        return None
+    try:
+        r = subprocess.run(
+            ["tesseract", path, "stdout", "-l", lang, "--quiet"],
+            capture_output=True, timeout=30
+        )
+        if r.returncode != 0:
+            return None
+        text = r.stdout.decode("utf-8", "replace")
+        # Collapse tesseract's whitespace so the stored haystack stays dense.
+        text = "\n".join(line.strip() for line in text.splitlines()
+                         if line.strip())
+        text = text.strip()
+        return text[:4000] or None
+    except Exception:
+        return None
 
 
 def capture_uri_list(types, app):

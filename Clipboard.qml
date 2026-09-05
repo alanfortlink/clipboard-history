@@ -30,6 +30,8 @@ Item {
   property int displayLimit: 200
   property int maxAgeDays: 0 // 0 = keep forever
   property bool qrDecode: true
+  property bool ocr: true
+  property string ocrLang: "eng"
   property bool paused: false
   property var typeCache: ({}) // id → derived type, memoized
 
@@ -330,10 +332,20 @@ Item {
 
   function applySettings(raw) {
     var s = Store.parseSettings(raw, "tank.clipboard")
+    var needsWatchRestart = s.qrDecode !== root.qrDecode || s.ocr !== root.ocr
+      || s.ocrLang !== root.ocrLang
     root.historyLimit = s.historyLimit
     root.maxAgeDays = s.maxAgeDays
     root.displayLimit = s.maxRows
     root.qrDecode = s.qrDecode
+    root.ocr = s.ocr
+    root.ocrLang = s.ocrLang
+    // The watchers read qr/ocr settings from the environment — restart them
+    // so changes take effect without a shell reload.
+    if (needsWatchRestart && watchProc.running) {
+      watchProc.running = false
+      watchRestartTimer.restart()
+    }
     root.applyRetentionPolicy()
     if (root.opened) root.rebuild()
   }
@@ -389,7 +401,11 @@ Item {
   Process {
     id: watchProc
     command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--watch", "python3", root.pluginDir + "/capture.py", "watch"]
-    environment: ({ "CLIPBOARD_QR": root.qrDecode ? "1" : "0" })
+    environment: ({
+      "CLIPBOARD_QR": root.qrDecode ? "1" : "0",
+      "CLIPBOARD_OCR": root.ocr ? "1" : "0",
+      "CLIPBOARD_OCR_LANG": root.ocrLang
+    })
     onExited: watchRestartTimer.restart()
     stdout: SplitParser {
       onRead: function(data) { root.addClipboardJson(data) }

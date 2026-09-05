@@ -39,14 +39,30 @@ echo "==> Enabling $PLUGIN_ID (replaces built-in omarchy.clipboard)"
 omarchy plugin enable "$PLUGIN_ID"
 
 echo "==> Rebinding ALT+SHIFT+V"
-if [[ -f $BINDINGS ]] && grep -q "^bindd = ALT SHIFT, V, " "$BINDINGS"; then
-  cp "$BINDINGS" "$BINDINGS.bak.$(date +%s)"
-  sed -i 's|^bindd = ALT SHIFT, V, .*|bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell shell toggle tank.clipboard|' "$BINDINGS"
+# Omarchy's live config may be bindings.lua (Quattro) or legacy bindings.conf —
+# edit whichever exists and let the other alone.
+rebound=0
+if [[ -f $HOME/.config/hypr/bindings.lua ]]; then
+  LUA="$HOME/.config/hypr/bindings.lua"
+  if grep -q 'ALT + SHIFT + V' "$LUA"; then
+    cp "$LUA" "$LUA.bak.$(date +%s)"
+    sed -i 's|^o.bind("ALT + SHIFT + V", "Clipboard manager (vicinae)", "vicinae deeplink vicinae://launch/clipboard/history")|o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)", "omarchy-shell shell toggle tank.clipboard")|' "$LUA"
+    echo "    rebound in bindings.lua (vicinae binding replaced)"
+    rebound=1
+  fi
+fi
+if [[ $rebound != 1 && -f $HOME/.config/hypr/bindings.conf ]] && grep -q "^bindd = ALT SHIFT, V, " "$HOME/.config/hypr/bindings.conf"; then
+  CONF="$HOME/.config/hypr/bindings.conf"
+  cp "$CONF" "$CONF.bak.$(date +%s)"
+  sed -i 's|^bindd = ALT SHIFT, V, .*|bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell shell toggle tank.clipboard|' "$CONF"
+  echo "    rebound in bindings.conf"
+  rebound=1
+fi
+if (( rebound )); then
   hyprctl reload >/dev/null
-  echo "    rebound; previous bindings backed up next to $BINDINGS"
 else
-  echo "    no ALT SHIFT V binding found in $BINDINGS — add manually:"
-  echo '    bindd = ALT SHIFT, V, Clipboard manager (clipboard-history), exec, omarchy-shell shell toggle tank.clipboard'
+  echo "    no ALT+SHIFT+V binding found — add manually to ~/.config/hypr/bindings.lua:"
+  echo '    o.bind("ALT + SHIFT + V", "Clipboard manager (clipboard-history)", "omarchy-shell shell toggle tank.clipboard")'
 fi
 
 echo

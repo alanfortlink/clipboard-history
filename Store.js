@@ -51,6 +51,7 @@ function normalize(value, now) {
     if (value.w) out.w = Number(value.w)
     if (value.h) out.h = Number(value.h)
     if (value.qr) out.qr = String(value.qr)
+    if (value.ocr) out.ocr = String(value.ocr)
   } else if (type === "files") {
     var paths = Array.isArray(value.paths) ? value.paths.filter(function(p) { return !!p }) : []
     if (paths.length === 0) return null
@@ -104,8 +105,9 @@ function addEntry(history, entry, now) {
       // Re-copy of existing content: keep its pin state and usage count.
       if (existing.pinned) normalized.pinned = true
       if (existing.uses > 0) normalized.uses = existing.uses
-      // Keep expensive derived data (e.g. decoded QR) across re-captures.
+      // Keep expensive derived data (decoded QR, OCR) across re-captures.
       if (existing.qr && !normalized.qr) normalized.qr = existing.qr
+      if (existing.ocr && !normalized.ocr) normalized.ocr = existing.ocr
       continue
     }
     next.push(existing)
@@ -200,7 +202,14 @@ function pruneByAge(history, maxAgeSeconds, now) {
 // optional; unknown keys are ignored. Reads only the plugins[] entry whose
 // id matches.
 function parseSettings(raw, pluginId) {
-  var out = { historyLimit: DEFAULT_LIMIT, maxAgeDays: 0, maxRows: 200, qrDecode: true }
+  var out = {
+    historyLimit: DEFAULT_LIMIT,
+    maxAgeDays: 0,
+    maxRows: 200,
+    qrDecode: true,
+    ocr: true,
+    ocrLang: "eng"
+  }
   var config = null
   try { config = JSON.parse(String(raw || "{}")) } catch (e) { return out }
   if (!config || !Array.isArray(config.plugins)) return out
@@ -218,6 +227,8 @@ function parseSettings(raw, pluginId) {
     if (isFinite(n) && n >= 1) out.maxRows = Math.floor(n)
 
     if (typeof entry.qrDecode === "boolean") out.qrDecode = entry.qrDecode
+    if (typeof entry.ocr === "boolean") out.ocr = entry.ocr
+    if (typeof entry.ocrLang === "string" && entry.ocrLang) out.ocrLang = entry.ocrLang
 
     break
   }
@@ -230,6 +241,8 @@ function buildRow(entry, derivedType, now) {
   if (entry.type === "image") {
     content = fileLabel(entry.path) + " " + String(entry.mime || "")
     if (entry.qr) content += " " + String(entry.qr).slice(0, 500)
+    // OCR text makes screenshots searchable like any text clip.
+    if (entry.ocr) content += " " + String(entry.ocr).slice(0, 4000)
   } else if (entry.type === "files") {
     content = (entry.paths || []).join(" ")
   } else {

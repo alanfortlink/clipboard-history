@@ -170,3 +170,20 @@ test("parseSettings ignores garbage", () => {
   const s = Store.parseSettings("not json", "tank.clipboard")
   assert.equal(s.historyLimit, 1500)
 })
+
+test("ocr passes through normalize, dedup, and search", () => {
+  const e = Store.normalize({ type: "image", path: "/x/s.png", mime: "image/png", ocr: "deploy staging" })
+  assert.equal(e.ocr, "deploy staging")
+  let h = Store.addEntry([], { type: "image", path: "/x/s.png", ocr: "deploy staging", ts: 1 })
+  h = Store.addEntry(h, { type: "image", path: "/x/s.png", ts: 2 })
+  assert.equal(h[0].ocr, "deploy staging")
+  const row = Store.buildRow(h[0], "image", 2)
+  assert.ok(row.content.includes("deploy staging"))
+})
+
+test("parseSettings ocr keys", () => {
+  const raw = JSON.stringify({ plugins: [{ id: "tank.clipboard", ocr: false, ocrLang: "deu" }] })
+  const s = Store.parseSettings(raw, "tank.clipboard")
+  assert.equal(s.ocr, false)
+  assert.equal(s.ocrLang, "deu")
+})

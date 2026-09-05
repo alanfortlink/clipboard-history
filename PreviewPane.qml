@@ -71,6 +71,10 @@ Item {
     var chips = []
     if (r.app) chips.push(Classify.prettyApp(r.app))
     if (e.qr) chips.push("QR: " + Classify.firstLine(e.qr, 40))
+    if (e.ocr) {
+      var ow = Classify.textStats(e.ocr).words
+      chips.push("OCR: " + Classify.plural(ow, "word"))
+    }
     if (e.type === "text" && e.text) {
       var st = Classify.textStats(e.text)
       chips.push(Classify.plural(st.words, "word"))
@@ -449,10 +453,62 @@ Item {
       }
     }
 
+    // OCR text recovered from the image (searchable like any text clip).
+    Rectangle {
+      id: ocrPanel
+      visible: root.entry && root.entry.ocr
+      width: parent.width
+      height: Math.min(Style.space(150), ocrContent.height + Style.space(12))
+      radius: Style.cornerRadius
+      color: root.chipBg
+
+      Column {
+        id: ocrContent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.topMargin: Style.space(6)
+        anchors.leftMargin: Style.space(6)
+        anchors.rightMargin: Style.space(6)
+        spacing: Style.space(4)
+
+        Text {
+          text: "󰐦 Recognized text (OCR)"
+          color: Color.accent
+          font.family: root.font_
+          font.pixelSize: Style.font.caption
+          font.bold: true
+        }
+
+        Flickable {
+          width: parent.width
+          height: ocrText.implicitHeight
+          clip: true
+          contentWidth: width
+          contentHeight: ocrText.implicitHeight
+
+          TextEdit {
+            id: ocrText
+            width: parent.width
+            readOnly: true
+            activeFocusOnPress: false
+            text: root.entry && root.entry.ocr ? root.entry.ocr : ""
+            textFormat: TextEdit.PlainText
+            color: root.fg
+            font.family: root.font_
+            font.pixelSize: Style.font.caption
+            wrapMode: TextEdit.Wrap
+            selectionColor: Util.alpha(Color.accent, 0.4)
+          }
+        }
+      }
+    }
+
     Item {
       width: parent.width
       height: Math.max(0, parent.height
              - (root.entry && root.entry.qr ? qrContent.height + Style.space(12) + Style.space(8) : 0)
+             - (root.entry && root.entry.ocr ? ocrPanel.height + Style.space(8) : 0)
              - infoLabel.height - Style.space(12))
 
       Image {
