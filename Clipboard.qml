@@ -14,10 +14,6 @@ import "Classify.js" as Classify
 Item {
   id: root
 
-  // Injected by the Omarchy plugin host. Following its shared panel-open state
-  // keeps the mapped window and the host's callable Loader in sync even after
-  // plugin rescans temporarily leave more than one Loader instance alive.
-  property var shell: null
   property bool opened: false
   property string filterText: ""
   property string typeFilter: "" // chip filter, "" = all; combined into the query
@@ -65,13 +61,7 @@ Item {
   // ------------------------------------------------------------ lifecycle
 
   function open() {
-    // Keep the layer mapped and switch its content/input on explicitly.
-    // A visibility binding across the host Loader -> PanelWindow boundary can
-    // remain stale after plugin reloads on current Quickshell.
     root.opened = true
-    card.visible = true
-    panelInputRegion.width = panel.width
-    panelInputRegion.height = panel.height
     root.depsChecked = false
     root.checkDeps()
     root.filterText = ""
@@ -85,9 +75,6 @@ Item {
 
   function close() {
     root.cancelClearHistory()
-    card.visible = false
-    panelInputRegion.width = 0
-    panelInputRegion.height = 0
     root.opened = false
   }
 
@@ -96,22 +83,7 @@ Item {
     else root.open()
   }
 
-  function syncShellOpenState() {
-    if (!root.shell || !root.shell.openPanelIds) return
-    var shouldOpen = root.shell.openPanelIds["alanfortlink.clipboard"] === true
-    if (shouldOpen && !root.opened) root.open()
-    else if (!shouldOpen && root.opened) root.close()
-  }
-
-  onShellChanged: root.syncShellOpenState()
-
-  Connections {
-    target: root.shell
-    function onOpenPanelIdsChanged() { root.syncShellOpenState() }
-  }
-
-  // Direct IPC avoids the host panel Loader selecting a stale instance after
-  // plugin rescans. Keybindings should target this handler, not shell.toggle.
+  // Direct target for explicit bindings and pause/resume automation.
   IpcHandler {
     target: "alanfortlink.clipboard"
     function open(): void { root.open() }
@@ -526,29 +498,20 @@ Item {
 
   // ------------------------------------------------------------ window
 
-  // Keep the small floating layer mapped: current Quickshell can fail to
-  // remap an unanchored PanelWindow after visible changes from false to true.
-  // While closed the card is invisible, keyboard focus is disabled, and the
-  // empty input region makes the surface completely click-through.
+  // Small floating card — no fullscreen surface or scrim.
   PanelWindow {
     id: panel
-    visible: true
+    visible: root.opened
     implicitWidth: root.cardWidth
     implicitHeight: root.cardHeight
     color: "transparent"
     WlrLayershell.namespace: "alanfortlink-clipboard"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
-    mask: Region {
-      id: panelInputRegion
-      width: 0
-      height: 0
-    }
 
     BorderSurface {
       id: card
-      visible: false
       anchors.fill: parent
       radius: root.cornerRadius
       color: root.background
@@ -975,7 +938,7 @@ Item {
             anchors.left: parent.left
             anchors.leftMargin: root.listWidth + Style.space(14)
             result: root.currentResult
-            onOpen: root.openResult(root.currentResult)
+            openAction: function() { root.openResult(root.currentResult) }
             visible: root.currentResult !== null
           }
 

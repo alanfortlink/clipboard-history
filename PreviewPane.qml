@@ -13,7 +13,7 @@ Item {
   property var entry: result ? result.row.entry : null
   property string derived: result ? result.row.type : ""
   // Wired by the picker: opens the current result (browser for links).
-  property var onOpen: function() {}
+  property var openAction: function() {}
 
   readonly property string font_: Style.font.menuFamily
   readonly property color fg: Color.menu.text
@@ -342,7 +342,7 @@ Item {
       MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.onOpen()
+        onClicked: root.openAction()
       }
     }
   }
@@ -447,7 +447,7 @@ Item {
           MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: root.onOpen()
+            onClicked: root.openAction()
           }
         }
       }
