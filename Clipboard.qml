@@ -794,6 +794,7 @@ Item {
             anchors.left: parent.left
             anchors.leftMargin: root.listWidth + Style.space(14)
             result: root.currentResult
+            onOpen: root.openResult(root.currentResult)
             visible: root.currentResult !== null
           }
 

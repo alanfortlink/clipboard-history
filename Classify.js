@@ -213,6 +213,16 @@ function urlDomain(url) {
   return m ? m[1] : ""
 }
 
+// First URL inside arbitrary text ("visit https://x.io/a for more", QR
+// payloads, …). Returns "" when none. Bare domains are NOT extracted here —
+// too noisy for prose; the shell-side open script has its own fallback.
+function extractUrl(text) {
+  var m = /https?:\/\/[^\s\]"'<>]+/i.exec(String(text || ""))
+  if (m) return m[0].replace(/[.,;:)!]+$/, "")
+  m = /(?:^|\s)(www\.[^\s\]"<>]+)/i.exec(String(text || ""))
+  return m ? m[1].replace(/[.,;:)!]+$/, "") : ""
+}
+
 // ---------------------------------------------------------------- apps
 
 var APP_NAMES = {

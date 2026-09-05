@@ -38,6 +38,17 @@ open_text() {
 case $(jq -r '.type' <<<"$entry") in
   image)
     path=$(jq -r '.path' <<<"$entry")
+    # A decoded QR payload often IS a link — opening it beats opening the image.
+    qr=$(jq -r '.qr // empty' <<<"$entry")
+    if [[ -n $qr ]]; then
+      url=$(printf '%s' "$qr" | grep -Eom1 'https?://[^[:space:]"<>]+' || true)
+      if [[ -z $url ]] && [[ $qr =~ ^[[:alnum:]][[:alnum:].-]*\.[[:alpha:]]{2,}(/[^[:space:]]*)?[[:space:]]*$ ]]; then
+        url="https://${BASH_REMATCH[0]}"
+      fi
+      if [[ -n $url ]]; then
+        exec omarchy-launch-browser "$url"
+      fi
+    fi
     [[ -r $path ]] || exit 0
     if command -v tensaku-edit >/dev/null 2>&1; then
       exec tensaku-edit "$path"

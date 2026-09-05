@@ -12,6 +12,8 @@ Item {
   property var result: null
   property var entry: result ? result.row.entry : null
   property string derived: result ? result.row.type : ""
+  // Wired by the picker: opens the current result (browser for links).
+  property var onOpen: function() {}
 
   readonly property string font_: Style.font.menuFamily
   readonly property color fg: Color.menu.text
@@ -50,6 +52,17 @@ Item {
     var hsl = Classify.colorToHsl(rawSafe())
     return hsl ? "hsl(" + hsl[0] + ", " + hsl[1] + "%, " + hsl[2] + "%)" : ""
   }
+
+  // URL inside the decoded QR payload ("" when the payload is not a link).
+  function qrUrl() {
+    if (!entry || !entry.qr) return ""
+    var url = Classify.extractUrl(entry.qr)
+    if (url) return url
+    var trimmed = String(entry.qr).trim()
+    return root.bareDomainRe.test(trimmed) ? trimmed : ""
+  }
+
+  readonly property var bareDomainRe: /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[^\s]*)?$/i
 
   function metaChips() {
     if (!result) return []
@@ -292,6 +305,42 @@ Item {
       font.family: root.font_
       font.pixelSize: Style.font.caption
     }
+
+    Rectangle {
+      radius: height / 2
+      color: Util.alpha(Color.accent, 0.15)
+      width: linkOpenLabel.implicitWidth + Style.space(16)
+      height: Style.space(22)
+
+      Row {
+        anchors.centerIn: parent
+        spacing: Style.space(4)
+
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          text: "󰌹"
+          color: Color.accent
+          font.family: root.font_
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          id: linkOpenLabel
+          anchors.verticalCenter: parent.verticalCenter
+          text: "Open link"
+          color: Color.accent
+          font.family: root.font_
+          font.pixelSize: Style.font.caption
+          font.bold: true
+        }
+      }
+
+      MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.onOpen()
+      }
+    }
   }
 
   // image body
@@ -358,6 +407,44 @@ Item {
           font.bold: true
           wrapMode: TextEdit.WrapAnywhere
           selectionColor: Util.alpha(Color.accent, 0.4)
+        }
+
+        // QR payloads frequently encode links — offer the open affordance.
+        Rectangle {
+          visible: root.qrUrl().length > 0
+          radius: height / 2
+          color: Util.alpha(Color.accent, 0.15)
+          width: qrOpenLabel.implicitWidth + Style.space(16)
+          height: Style.space(20)
+
+          Row {
+            anchors.centerIn: parent
+            spacing: Style.space(4)
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              text: "󰌹"
+              color: Color.accent
+              font.family: root.font_
+              font.pixelSize: Style.font.caption
+            }
+
+            Text {
+              id: qrOpenLabel
+              anchors.verticalCenter: parent.verticalCenter
+              text: "Open link"
+              color: Color.accent
+              font.family: root.font_
+              font.pixelSize: Style.font.caption
+              font.bold: true
+            }
+          }
+
+          MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.onOpen()
+          }
         }
       }
     }

@@ -21,7 +21,9 @@ full theme integration.
   domain, JSON is pretty-printed, file lists show paths — every preview with
   metadata chips (app, date, words/lines, size, paste counts)
 - **QR codes** — copied QR images are decoded with `zbarimg`; the payload is
-  shown in the list, preview, and is searchable like any text clip
+  shown in the list, preview, and is searchable like any text clip — and if it
+  encodes a link, `Ctrl+O` (or the preview's "Open link" chip) opens it in the
+  browser directly
 - **Rich capture** — a `wl-paste --watch` daemon records every clip with mime
   type, byte size, source app (via `hyprctl`), timestamp, and image dimensions.
   Text, images, and `file://` URI lists (file-manager copies) are supported;
@@ -67,7 +69,7 @@ Updating: `omarchy plugin update tank.clipboard` · Uninstall: `omarchy plugin r
 | `Ctrl+N` / `Ctrl+P` (or arrows) | navigate results |
 | `Enter` | copy to clipboard and paste into the focused window |
 | `Shift+Enter` | copy only |
-| `Ctrl+O` | open (link → browser, image → editor, file → xdg-open, text → editor) |
+| `Ctrl+O` | open (link → browser, image → editor, file → xdg-open, text → editor). QR images open their **decoded link** in the browser; the preview pane also has clickable "Open link" chips for links and QR payloads |
 | `Tab` | pin/unpin |
 | `Ctrl+=` | pause/resume recording |
 | `Delete` | remove entry · `Shift+Delete` clear all (with confirm) |

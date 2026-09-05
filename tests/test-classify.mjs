@@ -114,3 +114,13 @@ test("colorToRgb rejects junk", () => {
   assert.equal(Classify.colorToRgb("#gg"), null)
   assert.equal(Classify.colorToRgb("hello"), null)
 })
+
+test("extractUrl finds links in text and QR payloads", () => {
+  assert.equal(Classify.extractUrl("see https://omarchy.org/docs?a=1 for details."), "https://omarchy.org/docs?a=1")
+  assert.equal(Classify.extractUrl("go to www.example.com now"), "www.example.com")
+  assert.equal(Classify.extractUrl("https://x.io"), "https://x.io")
+  assert.equal(Classify.extractUrl("no link here"), "")
+  assert.equal(Classify.extractUrl(""), "")
+  // trailing punctuation is not part of the URL
+  assert.equal(Classify.extractUrl("(https://a.io/x)."), "https://a.io/x")
+})
