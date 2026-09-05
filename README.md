@@ -76,6 +76,25 @@ o.bind("SUPER + SHIFT + V", "Clipboard manager",
 
 Updating: `omarchy plugin update alanfortlink.clipboard` · Uninstall: `omarchy plugin remove alanfortlink.clipboard`
 
+### Upgrading a legacy `tank.clipboard` installation
+
+Remove either old plugin id, install the current release, repair legacy direct
+bindings to Omarchy's clone-aware source id, then restart the shell:
+
+```bash
+for id in tank.clipboard alanfortlink.clipboard; do
+  [[ -e "$HOME/.config/omarchy/plugins/$id" || -L "$HOME/.config/omarchy/plugins/$id" ]] && \
+    omarchy plugin remove "$id" --yes
+done
+omarchy plugin add https://github.com/alanfortlink/clipboard-history.git --enable --yes
+bash "$HOME/.config/omarchy/plugins/alanfortlink.clipboard/scripts/configure-bindings.sh"
+omarchy restart shell
+```
+
+Clipboard history data is preserved. The repaired shortcuts always target
+`omarchy.clipboard`: Omarchy routes them to this plugin while installed and
+back to its built-in clipboard after removal.
+
 ## Keys
 
 | Key | Action |

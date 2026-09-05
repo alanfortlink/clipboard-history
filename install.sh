@@ -38,7 +38,8 @@ mkdir -p "$PLUGINS_DIR"
 ln -sTfn "$PLUGIN_DIR" "$PLUGINS_DIR/$PLUGIN_ID"
 # On other machines, install directly from git instead:
 #   omarchy plugin add <this-repo-git-url> --enable
-chmod +x "$PLUGIN_DIR"/capture.py "$PLUGIN_DIR"/paste-entry.sh "$PLUGIN_DIR"/open-entry.sh
+chmod +x "$PLUGIN_DIR"/capture.py "$PLUGIN_DIR"/paste-entry.sh "$PLUGIN_DIR"/open-entry.sh \
+  "$PLUGIN_DIR"/scripts/configure-bindings.sh
 
 echo "==> Rescanning shell plugins"
 omarchy-shell shell rescanPlugins >/dev/null
@@ -59,50 +60,7 @@ echo "==> Enabling $PLUGIN_ID (replaces built-in omarchy.clipboard)"
 omarchy plugin enable "$PLUGIN_ID"
 
 echo "==> Binding SUPER+SHIFT+V and ALT+SHIFT+V to the clipboard source"
-# Always target the built-in source id. Omarchy routes it to this clone while
-# installed, then automatically routes it back to the built-in after removal.
-rebound=0
-if [[ -f $HOME/.config/hypr/bindings.lua ]]; then
-  LUA="$HOME/.config/hypr/bindings.lua"
-  tmp=$(mktemp)
-  python3 - "$LUA" >"$tmp" <<'PY'
-import re, sys
-text = open(sys.argv[1]).read()
-command = "omarchy-shell shell toggle omarchy.clipboard"
-for chord in ("SUPER + SHIFT + V", "ALT + SHIFT + V"):
-    line = f'o.bind("{chord}", "Clipboard manager (clipboard-history)", "{command}")'
-    pattern = re.compile(r'^\s*o\.bind\("' + re.escape(chord) + r'".*$', re.M)
-    if pattern.search(text):
-        text = pattern.sub(line, text, count=1)
-    else:
-        text = text.rstrip() + "\n" + line + "\n"
-sys.stdout.write(text)
-PY
-  if ! cmp -s "$LUA" "$tmp"; then
-    cp "$LUA" "$LUA.bak.$(date +%s)"
-    mv "$tmp" "$LUA"
-    echo "    updated bindings.lua (backup created)"
-  else
-    rm -f "$tmp"
-    echo "    bindings.lua already correct"
-  fi
-  rebound=1
-elif [[ -f $HOME/.config/hypr/bindings.conf ]]; then
-  CONF="$HOME/.config/hypr/bindings.conf"
-  cp "$CONF" "$CONF.bak.$(date +%s)"
-  sed -i '/^bindd = \(SUPER\|ALT\) SHIFT, V, /d' "$CONF"
-  printf '%s\n' \
-    'bindd = SUPER SHIFT, V, Clipboard manager, exec, omarchy-shell shell toggle omarchy.clipboard' \
-    'bindd = ALT SHIFT, V, Clipboard manager, exec, omarchy-shell shell toggle omarchy.clipboard' >>"$CONF"
-  echo "    updated bindings.conf (backup created)"
-  rebound=1
-fi
-if (( rebound )); then
-  hyprctl reload >/dev/null
-else
-  echo "ERROR: no live Hyprland bindings file found" >&2
-  exit 1
-fi
+"$PLUGIN_DIR/scripts/configure-bindings.sh"
 
 echo
 echo "Done. Press SUPER+SHIFT+V (or ALT+SHIFT+V) to open the clipboard picker."
