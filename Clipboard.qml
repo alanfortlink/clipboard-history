@@ -488,22 +488,30 @@ Item {
 
   // ------------------------------------------------------------ window
 
-  // Floating card: an unanchored layer surface is centered by the compositor,
-  // so the picker is just the card — no fullscreen scrim underneath.
+  // Use the same proven fullscreen layer surface as Omarchy's built-in
+  // clipboard. The surface is transparent; only the centered card is drawn.
+  // An unanchored, fixed-size PanelWindow can silently fail to map after a
+  // plugin hot reload on current Quickshell/Hyprland versions.
   PanelWindow {
     id: panel
     visible: root.opened
-    implicitWidth: root.cardWidth
-    implicitHeight: root.cardHeight
+    anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     WlrLayershell.namespace: "alanfortlink-clipboard"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
 
+    MouseArea {
+      anchors.fill: parent
+      onClicked: root.close()
+    }
+
     BorderSurface {
       id: card
-      anchors.fill: parent
+      width: root.cardWidth
+      height: root.cardHeight
+      anchors.centerIn: parent
       radius: root.cornerRadius
       color: root.background
       borderSpec: root.borderSpec
