@@ -14,6 +14,10 @@ import "Classify.js" as Classify
 Item {
   id: root
 
+  // Injected by the Omarchy plugin host. Following its shared panel-open state
+  // keeps the mapped window and the host's callable Loader in sync even after
+  // plugin rescans temporarily leave more than one Loader instance alive.
+  property var shell: null
   property bool opened: false
   property string filterText: ""
   property string typeFilter: "" // chip filter, "" = all; combined into the query
@@ -90,6 +94,20 @@ Item {
   function toggle() {
     if (root.opened) root.close()
     else root.open()
+  }
+
+  function syncShellOpenState() {
+    if (!root.shell || !root.shell.openPanelIds) return
+    var shouldOpen = root.shell.openPanelIds["alanfortlink.clipboard"] === true
+    if (shouldOpen && !root.opened) root.open()
+    else if (!shouldOpen && root.opened) root.close()
+  }
+
+  onShellChanged: root.syncShellOpenState()
+
+  Connections {
+    target: root.shell
+    function onOpenPanelIdsChanged() { root.syncShellOpenState() }
   }
 
   // ------------------------------------------------------------ pause
