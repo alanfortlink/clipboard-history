@@ -268,6 +268,22 @@ Item {
     Quickshell.execDetached([root.pluginDir + "/open-entry.sh", result.row.entry.id])
   }
 
+  // Text content of an entry as a string: the text itself, or for images the
+  // recognized (OCR) text, falling back to a decoded QR payload.
+  function textContent(result) {
+    if (!result) return ""
+    var e = result.row.entry
+    if (e.type === "image") return String(e.ocr || e.qr || "")
+    return String(e.text || "")
+  }
+
+  // Copy a plain string (not an entry) to the clipboard and close.
+  function copyText(text) {
+    if (!text) return
+    root.close()
+    Quickshell.execDetached(["wl-copy", "--type", "text/plain", "--", text])
+  }
+
   function removeIndex(index) {
     if (index < 0 || index >= root.results.length) return
     var entry = root.results[index].row.entry
@@ -559,6 +575,9 @@ Item {
             event.accepted = true
           } else if (event.key === Qt.Key_O && (event.modifiers & Qt.ControlModifier)) {
             root.openResult(root.currentResult)
+            event.accepted = true
+          } else if (event.key === Qt.Key_C && (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier)) {
+            root.copyText(root.textContent(root.currentResult))
             event.accepted = true
           } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
             if (event.modifiers & Qt.ShiftModifier) root.copyResult(root.currentResult)
@@ -927,6 +946,7 @@ Item {
             anchors.leftMargin: root.listWidth + Style.space(14)
             result: root.currentResult
             openAction: function() { root.openResult(root.currentResult) }
+            copyTextAction: function(text) { root.copyText(text) }
             visible: root.currentResult !== null
           }
 
@@ -972,6 +992,7 @@ Item {
               { keys: "enter", hint: "paste" },
               { keys: "shift+enter", hint: "copy" },
               { keys: "ctrl+o", hint: "open" },
+              { keys: "ctrl+shift+c", hint: "copy text" },
               { keys: "tab", hint: "pin" },
               { keys: "ctrl+=", hint: "pause" },
               { keys: "del", hint: "remove" },

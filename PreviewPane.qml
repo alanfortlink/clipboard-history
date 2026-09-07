@@ -14,6 +14,8 @@ Item {
   property string derived: result ? result.row.type : ""
   // Wired by the picker: opens the current result (browser for links).
   property var openAction: function() {}
+  // Wired by the picker: copies a string (OCR text, QR payload) to the clipboard.
+  property var copyTextAction: function(text) {}
 
   readonly property string font_: Style.font.menuFamily
   readonly property color fg: Color.menu.text
@@ -393,6 +395,30 @@ Item {
             font.bold: true
             anchors.verticalCenter: parent.verticalCenter
           }
+
+          Rectangle {
+            radius: height / 2
+            color: Util.alpha(Color.accent, 0.15)
+            width: qrCopyLabel.implicitWidth + Style.space(16)
+            height: Style.space(20)
+            anchors.verticalCenter: parent.verticalCenter
+
+            Text {
+              id: qrCopyLabel
+              anchors.centerIn: parent
+              text: "󰆏 Copy"
+              color: Color.accent
+              font.family: root.font_
+              font.pixelSize: Style.font.caption
+              font.bold: true
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.copyTextAction(root.entry ? String(root.entry.qr || "") : "")
+            }
+          }
         }
 
         TextEdit {
@@ -455,9 +481,13 @@ Item {
       id: ocrPanel
       visible: !!(root.entry && root.entry.ocr)
       width: parent.width
-      height: Math.min(Style.space(150), ocrContent.height + Style.space(12))
+      // Never taller than the cap: the body scrolls instead of overflowing
+      // the panel (which used to spill over the image below it).
+      readonly property int maxHeight: Math.max(Style.space(80), Math.floor(parent.height * 0.4))
+      height: Math.min(maxHeight, ocrHeader.height + Style.space(4) + ocrText.implicitHeight + Style.space(12))
       radius: Style.cornerRadius
       color: root.chipBg
+      clip: true
 
       Column {
         id: ocrContent
@@ -469,20 +499,62 @@ Item {
         anchors.rightMargin: Style.space(6)
         spacing: Style.space(4)
 
-        Text {
-          text: "󰐦 Recognized text (OCR)"
-          color: Color.accent
-          font.family: root.font_
-          font.pixelSize: Style.font.caption
-          font.bold: true
+        Row {
+          id: ocrHeader
+          width: parent.width
+          spacing: Style.space(8)
+
+          Text {
+            text: "󰐦 Recognized text (OCR)"
+            color: Color.accent
+            font.family: root.font_
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          Rectangle {
+            radius: height / 2
+            color: Util.alpha(Color.accent, 0.15)
+            width: ocrCopyLabel.implicitWidth + Style.space(16)
+            height: Style.space(20)
+            anchors.verticalCenter: parent.verticalCenter
+
+            Text {
+              id: ocrCopyLabel
+              anchors.centerIn: parent
+              text: "󰆏 Copy text"
+              color: Color.accent
+              font.family: root.font_
+              font.pixelSize: Style.font.caption
+              font.bold: true
+            }
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.copyTextAction(root.entry ? String(root.entry.ocr || "") : "")
+            }
+          }
         }
 
         Flickable {
+          id: ocrFlick
           width: parent.width
-          height: ocrText.implicitHeight
+          height: ocrPanel.height - ocrHeader.height - Style.space(4) - Style.space(12)
           clip: true
           contentWidth: width
           contentHeight: ocrText.implicitHeight
+          boundsBehavior: Flickable.StopAtBounds
+
+          WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            onWheel: function(ev) {
+              if (ev.angleDelta.y < 0) ocrFlick.flick(0, -240)
+              else ocrFlick.flick(0, 240)
+              ev.accepted = true
+            }
+          }
 
           TextEdit {
             id: ocrText

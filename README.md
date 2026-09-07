@@ -109,6 +109,7 @@ ever run when you invoke it explicitly.
 | `Enter` | copy to clipboard and paste into the focused window |
 | `Shift+Enter` | copy only |
 | `Ctrl+O` | open a pure link in the browser, an image in the editor, or a file externally. Text entries stay in the picker; use `Return` to paste them. QR images open their **decoded link** in the browser; the preview pane also has clickable "Open link" chips for links and QR payloads |
+| `Ctrl+Shift+C` | copy the entry's text content as plain text: for images, the OCR text (or QR payload). The QR and OCR panels also have **Copy** chips |
 | `Tab` | pin/unpin |
 | `Ctrl+=` | pause/resume recording |
 | `Delete` | remove entry · `Shift+Delete` clear all (with confirm) |
