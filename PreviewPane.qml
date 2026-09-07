@@ -21,22 +21,19 @@ Item {
   readonly property color chipBg: Util.alpha(fg, 0.07)
   readonly property color lineColor: Util.alpha(fg, 0.16)
 
-  property string bodyText: ""
-
-  onResultChanged: prepare()
-
-  function prepare() {
-    bodyText = ""
-    if (!entry) return
-    var t = derived
-    if (t === "json") {
-      var pretty = Classify.prettyJson(String(entry.text || ""), 200000)
-      bodyText = pretty || String(entry.text || "")
-    } else if (t === "html") {
-      bodyText = Classify.stripHtml(String(entry.text || "")) || String(entry.text || "")
-    } else if (t === "text" || t === "code" || t === "email" || t === "number") {
-      bodyText = String(entry.text || "")
-    }
+  // Textual types render in the scrollable body; every other type has its
+  // own block below. Derived as bindings (not set from onResultChanged) so
+  // the body text and the type can never disagree mid-update, which used to
+  // leave a stale text body visible underneath an image preview.
+  readonly property bool textual: derived === "text" || derived === "code"
+                                  || derived === "email" || derived === "number"
+                                  || derived === "json" || derived === "html"
+  readonly property string bodyText: {
+    if (!entry || !textual) return ""
+    var raw = String(entry.text || "")
+    if (derived === "json") return Classify.prettyJson(raw, 200000) || raw
+    if (derived === "html") return Classify.stripHtml(raw) || raw
+    return raw
   }
 
   function rawSafe() {
@@ -197,7 +194,7 @@ Item {
     anchors.right: parent.right
     anchors.topMargin: Style.space(10)
     anchors.bottomMargin: Style.space(10)
-    visible: root.bodyText !== ""
+    visible: root.textual && root.bodyText !== ""
     clip: true
     contentWidth: width
     contentHeight: bodyEdit.implicitHeight
