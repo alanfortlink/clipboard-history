@@ -61,6 +61,14 @@ That's the whole install — `omarchy plugin add` clones the repo, validates the
 manifest, and enables it. It replaces the built-in `omarchy.clipboard`
 (restore it later with `omarchy plugin disable alanfortlink.clipboard`).
 
+### Dependencies
+
+All are regular Arch packages; nothing is downloaded or run at install time.
+Required: `wl-clipboard`, `jq`, `python3`, `wtype` (paste into the focused
+window). Optional: `zbar` (QR decoding) and `tesseract` (OCR search) — without
+them the picker still works and shows the `omarchy pkg add …` command to add them.
+No sudo or pkexec is required by the plugin itself.
+
 Omarchy's default `Super+Ctrl+V` routes to it via the clone mechanism. An
 existing `Super+Shift+V` binding targeting `omarchy.clipboard` routes to it too.
 For a custom binding, edit the **live** config —
@@ -76,24 +84,22 @@ o.bind("SUPER + SHIFT + V", "Clipboard manager",
 
 Updating: `omarchy plugin update alanfortlink.clipboard` · Uninstall: `omarchy plugin remove alanfortlink.clipboard`
 
-### Upgrading a legacy `tank.clipboard` installation
+### Upgrading from a pre-1.0 install
 
-Remove either old plugin id, install the current release, repair legacy direct
-bindings to Omarchy's clone-aware source id, then restart the shell:
+If you installed an earlier build (plugin id `tank.clipboard`, or a symlinked
+checkout via `install.sh`), remove it, reinstall from git, and repair any direct
+shortcut bindings so they target Omarchy's clone-aware `omarchy.clipboard` id:
 
 ```bash
-for id in tank.clipboard alanfortlink.clipboard; do
-  [[ -e "$HOME/.config/omarchy/plugins/$id" || -L "$HOME/.config/omarchy/plugins/$id" ]] && \
-    omarchy plugin remove "$id" --yes
-done
+omarchy plugin remove tank.clipboard --yes   # or: alanfortlink.clipboard
 omarchy plugin add https://github.com/alanfortlink/clipboard-history.git --enable --yes
-bash "$HOME/.config/omarchy/plugins/alanfortlink.clipboard/scripts/configure-bindings.sh"
+bash ~/.config/omarchy/plugins/alanfortlink.clipboard/scripts/configure-bindings.sh
 omarchy restart shell
 ```
 
-Clipboard history data is preserved. The repaired shortcuts always target
-`omarchy.clipboard`: Omarchy routes them to this plugin while installed and
-back to its built-in clipboard after removal.
+History data is preserved. `configure-bindings.sh` edits `bindings.lua` (or
+`bindings.conf`) and leaves a timestamped `.bak` copy next to it; it is only
+ever run when you invoke it explicitly.
 
 ## Keys
 
