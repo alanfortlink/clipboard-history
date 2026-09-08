@@ -343,14 +343,31 @@ def capture_text(types, app):
     emit({"type": "text", "text": text, "bytes": len(data), "app": app})
 
 
-def main():
-    # The watcher pipes the clipboard payload to us; wl-clipboard blocks on
-    # writes if we close the pipe early, so drain it instead (we still probe
-    # types ourselves below).
+def drain_stdin(timeout=READ_TIMEOUT):
+    """Discard the watcher's payload in fixed chunks, with a total deadline.
+
+    False makes main exit without probing; process exit closes the pipe so
+    a stalled or endless producer cannot keep this helper alive indefinitely.
+    """
+    deadline = time.monotonic() + timeout
     try:
-        sys.stdin.buffer.read()
-    except Exception:
-        pass
+        fd = sys.stdin.fileno()
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            ready, _, _ = select.select([fd], [], [], remaining)
+            if not ready:
+                return False
+            if not os.read(fd, 65536):
+                return True
+    except (OSError, ValueError):
+        return False
+
+
+def main():
+    if not drain_stdin():
+        return
     types = list_types()
     if not types:
         return
