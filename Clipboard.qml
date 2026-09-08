@@ -10,7 +10,7 @@ import "Classify.js" as Classify
 
 // Clipboard history picker — Raycast-style: fuzzy search bar, result list,
 // and a per-type preview pane. Clone of omarchy.clipboard with richer
-// capture metadata (app, size, dims, pins, usage) and full-text fuzzy search.
+// capture metadata (app, size, dims, pins, usage) and full-text fuzzy filtering.
 Item {
   id: root
 

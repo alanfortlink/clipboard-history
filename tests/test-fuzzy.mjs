@@ -79,6 +79,21 @@ test("searchRows empty query sorts by recency", () => {
   assert.equal(res[0].row.content, "new")
 })
 
+test("searchRows: always newest first, pins and pastes do not reorder", () => {
+  const now = 1000000
+  const rows = [
+    { entry: {}, content: "pasted twice, 5 min ago", app: "", type: "text", ts: now - 300, pinned: false, uses: 2, bytes: 3 },
+    { entry: {}, content: "just copied", app: "", type: "text", ts: now - 5, pinned: false, uses: 0, bytes: 3 },
+    { entry: { pinned: true }, content: "pinned, old", app: "", type: "text", ts: now - 86400 * 3, pinned: true, uses: 0, bytes: 3 }
+  ]
+  const res = Fuzzy.searchRows(rows, "", now, 10)
+  assert.deepEqual(Array.from(res, r => r.row.content), ["just copied", "pasted twice, 5 min ago", "pinned, old"])
+  const typed = Fuzzy.searchRows(rows, "type:text <1h", now, 10)
+  assert.deepEqual(Array.from(typed, r => r.row.content), ["just copied", "pasted twice, 5 min ago"])
+  const searched = Fuzzy.searchRows(rows, "past", now, 10)
+  assert.deepEqual(Array.from(searched, r => r.row.content), ["pasted twice, 5 min ago"])
+})
+
 test("searchRows fuzzy ranks match above recency when strong", () => {
   const now = 1000000
   const rows = [
@@ -122,14 +137,16 @@ test("searchRows matches app field", () => {
   assert.equal(res[0].row.app, "firefox")
 })
 
-test("searchRows pinned boost wins", () => {
+test("searchRows is:pinned filters without reordering", () => {
   const now = 1000000
   const rows = [
-    { entry: { pinned: true }, content: "zzz pinned weak", app: "", type: "text", ts: now - 86400 * 10, pinned: true, uses: 0, bytes: 3 },
+    { entry: { pinned: true }, content: "zzz pinned old", app: "", type: "text", ts: now - 86400 * 10, pinned: true, uses: 0, bytes: 3 },
     { entry: {}, content: "fresh", app: "", type: "text", ts: now, pinned: false, uses: 0, bytes: 3 }
   ]
-  const res = Fuzzy.searchRows(rows, "", now, 10)
-  assert.equal(res[0].row.content, "zzz pinned weak")
+  assert.equal(Fuzzy.searchRows(rows, "", now, 10)[0].row.content, "fresh")
+  const pinned = Fuzzy.searchRows(rows, "is:pinned", now, 10)
+  assert.equal(pinned.length, 1)
+  assert.equal(pinned[0].row.content, "zzz pinned old")
 })
 
 test("searchRows respects limit", () => {

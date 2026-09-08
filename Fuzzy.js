@@ -153,7 +153,7 @@ function fuzzyMatch(needle, haystack) {
         score += 8
     }
 
-    // Gap penalty (light — we rank mostly by bonuses and recency).
+    // Gap penalty (light).
     if (k > 0) {
       var gap = pos - positions[k - 1] - 1
       if (gap > 0) score -= Math.min(6, gap)
@@ -227,7 +227,7 @@ function recencyBonus(ts, now) {
 }
 
 // rows: [{ entry, content, app, type, ts, pinned, uses, bytes }]
-// Returns up to `limit` rows sorted by relevance: [{ row, score, positions, type }]
+// Returns up to `limit` matching rows, newest first: [{ row, score, positions, type }]
 function searchRows(rows, queryStr, now, limit) {
   var parsed = parseQuery(queryStr)
   var results = []
@@ -255,11 +255,9 @@ function searchRows(rows, queryStr, now, limit) {
       if (!matched) continue
     }
 
-    var score = matched ? matched.score : 0
-    score += recencyBonus(row.ts, now)
-    if (row.entry.pinned) score += 500
-    if (row.uses > 0) score += 4 * Math.min(10, row.uses)
-
+    // Search only filters. The list is always ordered newest-first; no
+    // relevance, pin, or usage ranking.
+    var score = 0
     results.push({
       row: row,
       score: score,
@@ -268,7 +266,6 @@ function searchRows(rows, queryStr, now, limit) {
   }
 
   results.sort(function(a, b) {
-    if (b.score !== a.score) return b.score - a.score
     return (b.row.ts || 0) - (a.row.ts || 0)
   })
 
