@@ -11,7 +11,9 @@ import os
 import shutil
 import subprocess
 import sys
-import time
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import capture  # noqa: E402  (image_size / MAX_PARSE_PIXELS shared with the daemon)
 
 STATE = os.path.join(
     os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")),
@@ -55,6 +57,14 @@ def main():
         if entry.get("ocr") and not args.force:
             continue
         if not os.path.exists(entry["path"]):
+            continue
+        # Same guard as the capture daemon: never decode an image whose header
+        # dimensions are unknown or above the pixel cap.
+        with open(entry["path"], "rb") as f:
+            head = f.read(65536)
+        size = capture.image_size(head, entry.get("mime") or "image/png")
+        if not size or size[0] * size[1] > capture.MAX_PARSE_PIXELS:
+            print(f"  - {entry['id']}: skipped (size {size or 'unknown'})")
             continue
         text = ocr(entry["path"], args.lang)
         if text:

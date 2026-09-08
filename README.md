@@ -69,6 +69,13 @@ window). Optional: `zbar` (QR decoding) and `tesseract` (OCR search) — without
 them the picker still works and shows the `omarchy pkg add …` command to add them.
 No sudo or pkexec is required by the plugin itself.
 
+The clipboard owner is treated as untrusted. Payloads are streamed through a
+capped reader and dropped when they exceed 32 MiB (images) or 4 MiB (text), or
+take longer than 5 s to deliver; QR decoding and OCR only run on images under
+40 megapixels, as read from the file header without decoding. Override with
+`CLIPBOARD_MAX_IMAGE_BYTES`, `CLIPBOARD_MAX_TEXT_BYTES`, and
+`CLIPBOARD_MAX_PARSE_PIXELS` in the shell's environment.
+
 Omarchy's default `Super+Ctrl+V` routes to it via the clone mechanism. An
 existing `Super+Shift+V` binding targeting `omarchy.clipboard` routes to it too.
 For a custom binding, edit the **live** config —
