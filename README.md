@@ -61,6 +61,20 @@ That's the whole install — `omarchy plugin add` clones the repo, validates the
 manifest, and enables it. It replaces the built-in `omarchy.clipboard`
 (restore it later with `omarchy plugin disable alanfortlink.clipboard`).
 
+### File previews
+
+Copied files show their name, type, size, modification time, and path. Image
+and video files show a thumbnail and resolution; videos and audio show duration,
+and audio also shows codec, sample rate, and channels. PDFs show a first-page
+thumbnail and page information. Text and code files show the first 8 KiB.
+Folders and other files retain basic information. Use Previous/Next to inspect
+multiple copied files. Details load on selection, including for existing history.
+
+Media previews use optional `ffmpeg` (`ffprobe` included); PDF previews use
+optional `poppler` (`pdfinfo` and `pdftoppm`). Without them, basic file information
+still works. Preview commands have time and output limits, and media thumbnails
+are skipped above 40 megapixels. Missing or moved files show an error.
+
 ### Dependencies
 
 All are regular Arch packages; nothing is downloaded or run at install time.

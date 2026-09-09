@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Classify.js" as Classify
@@ -16,6 +17,55 @@ Item {
   property var openAction: function() {}
   // Wired by the picker: copies a string (OCR text, QR payload) to the clipboard.
   property var copyTextAction: function(text) {}
+  property string pluginDir: ""
+  property int fileIndex: 0
+  readonly property var filePaths: entry && entry.type === "files" ? entry.paths || [] : []
+  readonly property string selectedFile: filePaths.length ? filePaths[Math.min(fileIndex, filePaths.length - 1)] : ""
+  property var fileInfo: ({})
+  property int fileRequest: 0
+  onFilePathsChanged: fileIndex = 0
+  onSelectedFileChanged: {
+    fileRequest++
+    fileInfo = ({})
+    fileProbe.running = false
+    fileDelay.restart()
+  }
+  Timer {
+    id: fileDelay
+    interval: 120
+    onTriggered: {
+      if (!root.selectedFile || !root.pluginDir) return
+      fileProbe.command = ["python3", root.pluginDir + "/scripts/file-preview.py", String(root.fileRequest), root.selectedFile]
+      fileProbe.running = true
+    }
+  }
+  Process {
+    id: fileProbe
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var data = JSON.parse(text)
+          if (String(data.request) === String(root.fileRequest)) root.fileInfo = data.file
+        } catch (e) {}
+      }
+    }
+  }
+  function fileDetails() {
+    var f = fileInfo
+    var parts = []
+    if (f.kind) parts.push(f.kind)
+    if (f.bytes !== undefined && f.kind !== "Folder") parts.push(Classify.formatBytes(f.bytes))
+    if (f.width && f.height) parts.push(f.width + "×" + f.height)
+    if (f.duration) {
+      var seconds = Math.floor(f.duration)
+      parts.push(Math.floor(seconds / 60) + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60)
+    }
+    if (f.audio) parts.push(f.audio)
+    if (f.modified) parts.push("Modified " + new Date(f.modified * 1000).toLocaleString())
+    return parts.join(" · ")
+  }
+
 
   readonly property string font_: Style.font.menuFamily
   readonly property color fg: Color.menu.text
@@ -79,7 +129,7 @@ Item {
       chips.push(Classify.plural(st.words, "word"))
       chips.push(Classify.plural(st.lines, "line"))
     }
-    if (r.bytes > 0) chips.push(Classify.formatBytes(r.bytes))
+    if (r.bytes > 0 && e.type !== "files") chips.push(Classify.formatBytes(r.bytes))
     if (e.type === "image" && e.w && e.h) chips.push(e.w + "×" + e.h)
     if (e.type === "image") chips.push(e.mime || "image")
     if (e.pinned) chips.push("★ pinned")
@@ -625,8 +675,10 @@ Item {
     }
   }
 
-  // files body
-  Column {
+  // File content is bounded by a scrollable viewport, including long paths
+  // and text snippets. Selecting another file loads its details on demand.
+  Flickable {
+    id: filesBody
     anchors.top: divider.bottom
     anchors.bottom: metaRow.top
     anchors.left: parent.left
@@ -634,57 +686,158 @@ Item {
     anchors.topMargin: Style.space(10)
     anchors.bottomMargin: Style.space(10)
     visible: root.derived === "files"
-    spacing: Style.space(6)
     clip: true
-
-    Repeater {
-      model: {
-        if (!root.entry || root.entry.type !== "files") return []
-        return (root.entry.paths || []).slice(0, 10)
+    contentWidth: width
+    contentHeight: fileContent.height
+    boundsBehavior: Flickable.StopAtBounds
+    Connections {
+      target: root
+      function onSelectedFileChanged() { filesBody.contentY = 0 }
+    }
+    WheelHandler {
+      acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+      onWheel: function(ev) {
+        filesBody.flick(0, ev.angleDelta.y < 0 ? -240 : 240)
+        ev.accepted = true
       }
-
-      delegate: Row {
-        required property var modelData
-        width: parent ? parent.width : 0
+    }
+    Column {
+      id: fileContent
+      width: filesBody.width
+      spacing: Style.space(8)
+      Row {
+        width: parent.width
         spacing: Style.space(8)
-
-        Text {
-          text: "󰈚"
-          color: Color.accent
-          font.family: root.font_
-          font.pixelSize: Style.font.body
+        visible: root.filePaths.length > 1
+        Repeater {
+          model: ["‹ Previous", "Next ›"]
+          delegate: Rectangle {
+            required property int index
+            required property string modelData
+            width: navLabel.implicitWidth + Style.space(16)
+            height: Style.space(24)
+            color: root.chipBg
+            radius: Style.cornerRadius
+            Text {
+              id: navLabel
+              anchors.centerIn: parent
+              text: modelData
+              color: root.fg
+              font.family: root.font_
+              font.pixelSize: Style.font.caption
+            }
+            MouseArea {
+              anchors.fill: parent
+              onClicked: root.fileIndex = (root.fileIndex + (index === 0 ? -1 : 1) + root.filePaths.length) % root.filePaths.length
+            }
+          }
         }
-
         Text {
-          text: Classify.fileBase(modelData)
-          color: root.fg
+          text: (root.fileIndex + 1) + " / " + root.filePaths.length
+          color: root.mutedFg
           font.family: root.font_
-          font.pixelSize: Style.font.body
-          elide: Text.ElideMiddle
-          width: parent.width - Style.space(24)
-          maximumLineCount: 1
+          font.pixelSize: Style.font.caption
         }
       }
-    }
-
-    Text {
-      visible: !!(root.entry && root.entry.paths && root.entry.paths.length > 10)
-      text: root.entry && root.entry.paths ? "… and " + (root.entry.paths.length - 10) + " more" : ""
-      color: root.mutedFg
-      font.family: root.font_
-      font.pixelSize: Style.font.caption
-    }
-
-    Text {
-      text: root.entry && root.entry.paths && root.entry.paths.length > 0
-            ? "in " + Classify.fileDir(root.entry.paths[0])
-            : ""
-      color: root.mutedFg
-      font.family: root.font_
-      font.pixelSize: Style.font.caption
-      elide: Text.ElideMiddle
-      width: parent.width
-      maximumLineCount: 1
+      Text {
+        width: parent.width
+        text: Classify.fileBase(root.selectedFile)
+        textFormat: Text.PlainText
+        wrapMode: Text.WrapAnywhere
+        color: root.fg
+        font.family: root.font_
+        font.pixelSize: Style.font.body
+        font.bold: true
+      }
+      Rectangle {
+        id: thumbnailPanel
+        readonly property bool loading: fileDelay.running || fileProbe.running || fileThumbnail.status === Image.Loading
+        width: parent.width
+        height: visible ? Math.min(Style.space(240), filesBody.height * 0.55) : 0
+        visible: loading || !!root.fileInfo.thumbnail
+        color: root.chipBg
+        radius: Style.cornerRadius
+        clip: true
+        Image {
+          id: fileThumbnail
+          anchors.fill: parent
+          visible: status === Image.Ready && !thumbnailPanel.loading
+          source: root.fileInfo.thumbnail || ""
+          fillMode: Image.PreserveAspectFit
+          asynchronous: true
+          sourceSize.width: 640
+          sourceSize.height: 360
+        }
+        Column {
+          anchors.centerIn: parent
+          spacing: Style.space(8)
+          visible: thumbnailPanel.loading
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: "◌"
+            color: Color.accent
+            font.pixelSize: Style.space(28)
+            NumberAnimation on rotation {
+              from: 0
+              to: 360
+              duration: 1000
+              loops: Animation.Infinite
+              running: thumbnailPanel.loading && filesBody.visible
+            }
+          }
+          Text {
+            text: "Loading preview…"
+            color: root.mutedFg
+            font.family: root.font_
+            font.pixelSize: Style.font.caption
+          }
+        }
+        Text {
+          anchors.centerIn: parent
+          visible: !thumbnailPanel.loading && fileThumbnail.status === Image.Error
+          text: "Thumbnail unavailable"
+          color: root.mutedFg
+          font.family: root.font_
+          font.pixelSize: Style.font.caption
+        }
+      }
+      Text {
+        width: parent.width
+        text: root.fileInfo.error || root.fileDetails() || (thumbnailPanel.loading ? "Loading file information…" : "File information unavailable")
+        textFormat: Text.PlainText
+        wrapMode: Text.WrapAnywhere
+        color: root.mutedFg
+        font.family: root.font_
+        font.pixelSize: Style.font.caption
+      }
+      Text {
+        width: parent.width
+        text: root.selectedFile
+        textFormat: Text.PlainText
+        wrapMode: Text.WrapAnywhere
+        color: root.mutedFg
+        font.family: root.font_
+        font.pixelSize: Style.font.caption
+      }
+      TextEdit {
+        width: parent.width
+        visible: text.length > 0
+        text: root.fileInfo.text || root.fileInfo.details || ""
+        textFormat: TextEdit.PlainText
+        readOnly: true
+        activeFocusOnPress: false
+        wrapMode: TextEdit.WrapAnywhere
+        color: root.fg
+        font.family: root.font_
+        font.pixelSize: Style.font.body
+      }
+      Text {
+        visible: !!root.fileInfo.truncated
+        text: "Preview limited to the first 8 KiB"
+        color: root.mutedFg
+        font.family: root.font_
+        font.pixelSize: Style.font.caption
+      }
     }
   }
 

@@ -947,6 +947,7 @@ Item {
             result: root.currentResult
             openAction: function() { root.openResult(root.currentResult) }
             copyTextAction: function(text) { root.copyText(text) }
+            pluginDir: root.pluginDir
             visible: root.currentResult !== null
           }
 
