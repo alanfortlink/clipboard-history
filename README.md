@@ -12,7 +12,9 @@ full theme integration.
 ## Highlights
 
 - **Fuzzy search over everything** — fzf-style matching across content, source
-  app, and type. The list is always newest-first; search only filters it. Query tokens:
+  app, and type. Typed terms rank by relevance (exact/substring matches above
+  sparse subsequences, recency breaking ties); filter-only queries stay
+  newest-first. Query tokens:
   - `type:image|link|text|files|code|json|color|email|html|number` (prefix match)
   - `app:firefox` — fuzzy match on the source app
   - `is:pinned`, `today`, `yesterday`, `week`, `<2h`, `>30s`, `<3d`

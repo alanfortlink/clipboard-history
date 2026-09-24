@@ -227,7 +227,8 @@ function recencyBonus(ts, now) {
 }
 
 // rows: [{ entry, content, app, type, ts, pinned, uses, bytes }]
-// Returns up to `limit` matching rows, newest first: [{ row, score, positions, type }]
+// Returns up to `limit` matching rows: [{ row, score, positions, type }].
+// Relevance-ordered when the query has terms, otherwise newest-first.
 function searchRows(rows, queryStr, now, limit) {
   var parsed = parseQuery(queryStr)
   var results = []
@@ -255,17 +256,19 @@ function searchRows(rows, queryStr, now, limit) {
       if (!matched) continue
     }
 
-    // Search only filters. The list is always ordered newest-first; no
-    // relevance, pin, or usage ranking.
-    var score = 0
     results.push({
       row: row,
-      score: score,
+      score: matched ? matched.score : 0,
       positions: matched ? matched.positions : null
     })
   }
 
+  // With search terms, rank by relevance so exact/substring matches beat
+  // sparse subsequences; recency only breaks ties. Filter-only queries
+  // (type:, app:, date tokens) stay newest-first.
+  var byRelevance = parsed.terms.length > 0
   results.sort(function(a, b) {
+    if (byRelevance && b.score !== a.score) return b.score - a.score
     return (b.row.ts || 0) - (a.row.ts || 0)
   })
 

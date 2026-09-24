@@ -104,6 +104,16 @@ test("searchRows fuzzy ranks match above recency when strong", () => {
   assert.ok(res[0].row.content.toLowerCase().includes("awesome"))
 })
 
+test("searchRows ranks exact/substring above sparse fuzzy", () => {
+  const now = 1000000
+  const rows = [
+    { entry: {}, content: "a x b x c", app: "", type: "text", ts: now, pinned: false, uses: 0, bytes: 3 },
+    { entry: {}, content: "xxabcxx", app: "", type: "text", ts: now - 86400 * 10, pinned: false, uses: 0, bytes: 3 }
+  ]
+  const res = Fuzzy.searchRows(rows, "abc", now, 10)
+  assert.equal(res[0].row.content, "xxabcxx")
+})
+
 test("searchRows type filter", () => {
   const now = 1000000
   const rows = [
