@@ -34,6 +34,18 @@ esac
 [[ $MODE == "--copy-only" ]] && exit 0
 
 # Give the layer surface a moment to close and focus to fall back to the
-# previously-focused window, then paste via the universal Shift+Insert.
+# previously-focused window, then paste into it.
 sleep 0.15
-wtype -M shift -k Insert -m shift 2>/dev/null || true
+
+# Terminals want Shift+Insert; everything else wants Ctrl+V (Firefox-based
+# browsers ignore Shift+Insert). Mirrors Omarchy's universal paste, which keys
+# off the "terminal" window tag. Dynamic Hyprland tags end in "*".
+# Images always get Ctrl+V: Shift+Insert is text-only in terminals, while
+# terminal apps (e.g. pi) read the clipboard themselves on Ctrl+V.
+tags=$(hyprctl activewindow -j 2>/dev/null | jq -r '[.tags[]? | sub("\\*$"; "")] | join(" ")' 2>/dev/null) || tags=""
+
+if [[ $type != "image" && " $tags " == *" terminal "* ]]; then
+  wtype -M shift -k Insert -m shift 2>/dev/null || true
+else
+  wtype -M ctrl -k v -m ctrl 2>/dev/null || true
+fi
