@@ -114,6 +114,30 @@ test("searchRows ranks exact/substring above sparse fuzzy", () => {
   assert.equal(res[0].row.content, "xxabcxx")
 })
 
+test("searchRows ranks substring above any fuzzy-only match", () => {
+  const now = 1000000
+  // Many word-boundary hits make the sparse match outscore the buried substring.
+  const rows = [
+    { entry: {}, content: "s-t-a-g-i-n-g", app: "", type: "text", ts: now, pinned: false, uses: 0, bytes: 3 },
+    { entry: {}, content: "x".repeat(3000) + "staging" + "x".repeat(3000), app: "", type: "text", ts: now - 86400 * 30, pinned: false, uses: 0, bytes: 3 }
+  ]
+  assert.ok(Fuzzy.fuzzyMatch("staging", rows[0].content).score > Fuzzy.fuzzyMatch("staging", rows[1].content).score)
+  const res = Fuzzy.searchRows(rows, "staging", now, 10)
+  assert.equal(res[0].row, rows[1])
+})
+
+test("searchRows ranks exact entry above substring matches", () => {
+  const now = 1000000
+  const rows = [
+    { entry: {}, content: "git push origin main", app: "", type: "text", ts: now, pinned: false, uses: 0, bytes: 3 },
+    { entry: {}, content: "Git  Push", app: "", type: "text", ts: now - 86400 * 30, pinned: false, uses: 0, bytes: 3 },
+    { entry: {}, content: "push git", app: "", type: "text", ts: now - 10, pinned: false, uses: 0, bytes: 3 }
+  ]
+  const res = Fuzzy.searchRows(rows, "git push", now, 10)
+  assert.equal(res[0].row.content, "Git  Push")
+  assert.equal(res.length, 3)
+})
+
 test("searchRows type filter", () => {
   const now = 1000000
   const rows = [

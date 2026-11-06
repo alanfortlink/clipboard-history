@@ -12,8 +12,9 @@ full theme integration.
 ## Highlights
 
 - **Fuzzy search over everything** — fzf-style matching across content, source
-  app, and type. Typed terms rank by relevance (exact/substring matches above
-  sparse subsequences, recency breaking ties); filter-only queries stay
+  app, and type. Typed terms rank by relevance (entries equal to the query first,
+  then verbatim substring matches, then sparse subsequences; recency breaks
+  ties); filter-only queries stay
   newest-first. Query tokens:
   - `type:image|link|text|files|code|json|color|email|html|number` (prefix match)
   - `app:firefox` — fuzzy match on the source app
@@ -207,7 +208,7 @@ blobs are content-addressed under `~/.local/state/omarchy/clipboard-images/`.
 ├── Fuzzy.js           # query parser, fuzzy matcher, scoring, highlighting
 ├── Classify.js        # type detection, app names, formatting, color math
 ├── capture.py         # clipboard watcher → one JSON line per clip (QR + OCR)
-├── paste-entry.sh     # copy + shift-insert paste into the focused window
+├── paste-entry.sh     # copy + paste (Ctrl+V, Shift+Insert in terminals)
 ├── open-entry.sh      # open with the right app
 ├── tests/             # node --test suites for the JS logic
 └── scripts/           # screenshot regeneration helpers

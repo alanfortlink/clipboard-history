@@ -175,8 +175,13 @@ function fuzzyMatch(needle, haystack) {
   // Length penalty so "func" ranks higher in short snippets than in essays.
   score -= Math.min(25, hl.length / 400)
 
-  return { score: score, positions: positions }
+  return { score: score, positions: positions, substring: substringIdx >= 0 }
 }
+
+// Match tiers: a higher tier always outranks a lower one, whatever the score.
+var TIER_FUZZY = 0      // some term only matched as a sparse subsequence
+var TIER_SUBSTRING = 1  // every term appears verbatim (case-insensitive)
+var TIER_EXACT = 2      // the whole content equals the query
 
 var FIELDS = [
   { name: "content", weight: 1.0 },
@@ -186,13 +191,16 @@ var FIELDS = [
 
 // Every term must match in at least one field; the score is the sum of each
 // term's best field score (already weighted). Positions returned are for the
-// best-scoring content-field match (for highlighting).
+// best-scoring content-field match (for highlighting). `tier` is TIER_SUBSTRING
+// when every term occurs verbatim in some field, TIER_FUZZY otherwise.
 function matchRow(queryTerms, row) {
   var total = 0
   var contentPositions = null
+  var allSubstring = true
   for (var t = 0; t < queryTerms.length; t++) {
     var term = queryTerms[t]
     var best = -1
+    var termSubstring = false
     for (var f = 0; f < FIELDS.length; f++) {
       var field = FIELDS[f]
       var text = field.name === "content" ? row.content
@@ -201,6 +209,7 @@ function matchRow(queryTerms, row) {
       if (!text) continue
       var m = fuzzyMatch(term, text)
       if (m) {
+        if (m.substring) termSubstring = true
         var weighted = m.score * field.weight
         if (weighted > best) {
           best = weighted
@@ -209,9 +218,16 @@ function matchRow(queryTerms, row) {
       }
     }
     if (best < 0) return null
+    if (!termSubstring) allSubstring = false
     total += best
   }
-  return { score: total, positions: contentPositions }
+  return { score: total, positions: contentPositions, tier: allSubstring ? TIER_SUBSTRING : TIER_FUZZY }
+}
+
+// Whole-entry equality with the query's search terms, ignoring case and
+// surrounding/internal whitespace runs.
+function normalizeWs(s) {
+  return String(s || "").toLowerCase().replace(/\s+/g, " ").trim()
 }
 
 function ageFilterOk(parsed, ageSeconds) {
@@ -232,6 +248,7 @@ function recencyBonus(ts, now) {
 function searchRows(rows, queryStr, now, limit) {
   var parsed = parseQuery(queryStr)
   var results = []
+  var exactNeedle = normalizeWs(parsed.terms.join(" "))
   if (parsed.maxAge < 0 && parsed.terms.length === 0 && !parsed.type && !parsed.app && !parsed.pinned)
     parsed.maxAge = -1 // no-op, keeps empty-query path below cheap
 
@@ -251,23 +268,34 @@ function searchRows(rows, queryStr, now, limit) {
     }
 
     var matched = null
+    var tier = TIER_FUZZY
     if (parsed.terms.length > 0) {
       matched = matchRow(parsed.terms, row)
       if (!matched) continue
+      tier = matched.tier
+      if (tier === TIER_SUBSTRING && normalizeWs(row.content) === exactNeedle) {
+        tier = TIER_EXACT
+        var all = []
+        for (var c = 0; c < String(row.content).length; c++) all.push(c)
+        matched.positions = all
+      }
     }
 
     results.push({
       row: row,
+      tier: tier,
       score: matched ? matched.score : 0,
       positions: matched ? matched.positions : null
     })
   }
 
-  // With search terms, rank by relevance so exact/substring matches beat
-  // sparse subsequences; recency only breaks ties. Filter-only queries
-  // (type:, app:, date tokens) stay newest-first.
+  // With search terms, rank exact entries, then verbatim substring matches,
+  // then sparse subsequences; score orders within a tier and recency only
+  // breaks ties. Filter-only queries (type:, app:, date tokens) stay
+  // newest-first.
   var byRelevance = parsed.terms.length > 0
   results.sort(function(a, b) {
+    if (byRelevance && b.tier !== a.tier) return b.tier - a.tier
     if (byRelevance && b.score !== a.score) return b.score - a.score
     return (b.row.ts || 0) - (a.row.ts || 0)
   })
